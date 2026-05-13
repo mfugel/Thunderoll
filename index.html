@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thunderoll v0.5 – Multiplayer Dice Game</title>
-    <meta name="description" content="Thunderoll v0.5 – Multiplayer dice game with hot-dice bonus, four-of-a-kind, confetti, and sound">
+    <title>Thunderoll v0.6 – Multiplayer Dice Game</title>
+    <meta name="description" content="Thunderoll v0.6 – Multiplayer Farkle-style dice game with official scoring rules, hot dice, and triple-farkle penalty">
     <style>
         :root{--d1:#ff6b6b;--d2:#4834d4;--d3:#00d2d3;--d4:#ff9ff3;--d5:#54a0ff;--d6:#5f27cd}
         html,body{margin:0;padding:0;height:100%}
@@ -30,7 +30,8 @@
         @keyframes r{0%{transform:translateY(0) rotateX(0)}100%{transform:translateY(-20px) rotateX(720deg) rotateY(720deg)}}
         .die:hover:not(.kept):not(.rolling){transform:scale(1.08)}
         .die.scoring{border-color:#f1c40f !important;box-shadow:0 0 30px #f1c40f}
-        .die.kept{border-color:#2ecc71 !important;box-shadow:0 0 30px #2ecc71;transform:scale(.95);cursor:default}
+        .die.selected{border-color:#2ecc71 !important;box-shadow:0 0 30px #2ecc71;transform:scale(.95)}
+        .die.locked{border-color:#7f8c8d !important;opacity:.55;cursor:not-allowed;transform:scale(.92);box-shadow:none}
         .die.d1{background:var(--d1)}.die.d2{background:var(--d2)}.die.d3{background:var(--d3)}.die.d4{background:var(--d4)}.die.d5{background:var(--d5)}.die.d6{background:var(--d6)}
         .die svg{width:100%;height:100%}
         .dot{fill:#fff}
@@ -47,11 +48,23 @@
         .farkle{color:#e74c3c;animation:s .5s}
         @keyframes p{50%{opacity:.7}}@keyframes s{25%,75%{transform:translateX(-5px)}}
         canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+        .rules-btn{background:#16a085 !important}
+        .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+        .modal-content{background:#2c3e50;padding:24px 28px;border-radius:12px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);color:#fff}
+        .modal-content h3{margin-top:0;color:#f1c40f}
+        .modal-content h4{margin-bottom:8px;margin-top:18px;color:#f1c40f}
+        .modal-content table{width:100%;border-collapse:collapse;margin:8px 0}
+        .modal-content td{padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
+        .modal-content td:last-child{text-align:right;font-weight:bold;color:#f1c40f}
+        .modal-content ul{padding-left:20px;margin:8px 0}
+        .modal-content li{margin:6px 0;line-height:1.45}
+        .modal-close{margin-top:16px;width:100%;background:#3498db}
+        .rules-legend{font-size:.85em;opacity:.8;margin-top:8px}
     </style>
 </head>
 <body>
 <div class="c">
-    <h1>Thunderoll v0.5</h1>
+    <h1>Thunderoll v0.6</h1>
     <div id="setup" class="setup">
         <h2>Game Setup</h2>
         <div class="setup-row">
@@ -62,12 +75,16 @@
         <div class="player-list" id="playerList">
             <div class="player-item"><input type="text" value="Player 1"><button class="remove-player">×</button></div>
         </div>
-        <div style="margin-top:20px"><button id="startGame" style="background:#2ecc71;font-size:1.2em;padding:14px 32px">Start Game</button></div>
+        <div style="margin-top:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+            <button id="startGame" style="background:#2ecc71;font-size:1.2em;padding:14px 32px">Start Game</button>
+            <button id="setupRulesBtn" class="rules-btn" style="font-size:1em;padding:14px 24px">📖 Scoring Rules</button>
+        </div>
     </div>
     <div id="game" style="display:none">
         <div class="top-controls">
             <button id="rollBtn">Roll Dice</button>
             <button id="bankBtn" disabled>Bank Score</button>
+            <button id="rulesBtn" class="rules-btn">📖 Rules</button>
             <button id="soundBtn" class="sound-btn">Sound On</button>
             <button id="newGameBtn" style="background:#95a5a6">New Game</button>
         </div>
@@ -87,8 +104,26 @@
 
 <canvas id="confetti"></canvas>
 
+<div id="rulesModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <div id="rulesContent"></div>
+        <button id="closeRulesBtn" class="modal-close">Close</button>
+    </div>
+</div>
+
 <script>
-    // ========= v0.5: Fixed Hot Dice scoring + Four-of-a-Kind + Confetti + Sound + Scroll =========
+    // ========= v0.6: Rules engine + official-rule compliance =========
+    // Bugs fixed from v0.5:
+    //   - Straight was 1500, now 1000 per official rules
+    //   - 4+ of a kind dropped extras for 1s/5s (e.g. four 1s scored 1000, now 1100)
+    //   - Cross-roll combo bug: kept dice from prior rolls were re-evaluated as combos
+    //     with current-roll dice (three separate 1s scored as triple-1s=1000 instead of 300)
+    //   - Hot dice score-loss bug when user manually clicked the last scoring die
+    //   - No enforcement of "must keep at least one scoring die per roll"
+    //   - No "one more round after threshold" rule
+    //   - No triple-Farkle penalty
+    // Architecture: rulesets are pluggable. Add variants under RULESETS, expose a picker later.
+
     let soundEnabled = true;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -106,7 +141,7 @@
         g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.15);
         o.start();o.stop(audioCtx.currentTime+0.15); }
 
-    // Confetti System (unchanged)
+    // Confetti (unchanged from v0.5)
     const confettiCanvas = document.getElementById('confetti');
     const ctx = confettiCanvas.getContext('2d');
     let confettiParticles = [];
@@ -117,214 +152,509 @@
     function drawConfetti() { ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); confettiParticles.forEach((p,i)=>{p.tiltAngle+=p.tiltAngleIncremental;p.y+=p.d+Math.sin(p.tiltAngle)*0.5;p.tilt=Math.sin(p.tiltAngle)*15;if(p.y>confettiCanvas.height)confettiParticles.splice(i,1);else{ctx.beginPath();ctx.lineWidth=p.r;ctx.strokeStyle=p.color;ctx.moveTo(p.x+p.tilt+p.r/2,p.y);ctx.lineTo(p.x+p.tilt-p.r/2,p.y+p.r);ctx.stroke();}}); if(confettiParticles.length>0) requestAnimationFrame(drawConfetti); }
     function triggerConfetti() { createConfetti(); setTimeout(()=>{createConfetti();setTimeout(createConfetti,200);},100); drawConfetti(); }
 
-    const state = { players: [], scores: [], currentPlayer: 0, turnTotal: 0, currentRollScore: 0, dice: [], kept: new Set(), activeDice: 6, winScore: 10000, rolling: false, hotDice: false };
-    const els = { setup: document.getElementById('setup'), game: document.getElementById('game'), winScore: document.getElementById('winScore'), targetScore: document.getElementById('targetScore'), addPlayer: document.getElementById('addPlayer'), startGame: document.getElementById('startGame'), playerList: document.getElementById('playerList'), rollBtn: document.getElementById('rollBtn'), bankBtn: document.getElementById('bankBtn'), soundBtn: document.getElementById('soundBtn'), newGameBtn: document.getElementById('newGameBtn'), diceContainer: document.getElementById('diceContainer'), currentPlayer: document.getElementById('currentPlayer'), turnScore: document.getElementById('turnScore'), selectedScore: document.getElementById('selectedScore'), rollScore: document.getElementById('rollScore'), statusMessage: document.getElementById('statusMessage'), scoreBoard: document.getElementById('scoreBoard'), gameLog: document.getElementById('gameLog') };
+    // ============================================================
+    //  RULESETS — add new variants here. Each ruleset is self-contained.
+    // ============================================================
+    const RULESETS = {
+        official: {
+            name: 'Official',
+            description: 'Standard Farkle scoring per farkle.games/official-rules.',
+            defaultWinScore: 10000,
+            scoring: {
+                ones: 100,
+                fives: 50,
+                threeOfAKind: { 1: 1000, 2: 200, 3: 300, 4: 400, 5: 500, 6: 600 },
+                straight: 1000,           // 1-2-3-4-5-6
+                threePairs: 750,
+                // Variant slots — null means "fall through to triple + extras as singles"
+                fourOfAKindMultiplier: null,   // e.g. 2 = double the triple value
+                fiveOfAKindMultiplier: null,   // e.g. 3
+                sixOfAKindMultiplier: null,    // e.g. 4
+                twoTriplets: null,             // e.g. 2500 — two 3-of-a-kinds in one roll
+                fourPlusPair: null,            // e.g. 1500 — 4-of-a-kind + a pair in one roll
+            },
+            rules: {
+                tripleFarklePenalty: -1000,
+                oneMoreRoundAfterThreshold: true,
+                minScoreToGetOnBoard: 0,
+                mustKeepEachRoll: true,
+            },
+        },
+        // future variants slot in here — same shape, different numbers
+    };
+
+    let activeRuleset = RULESETS.official;
+
+    // ============================================================
+    //  SCORING ENGINE — pure function over (values, ruleset)
+    //  Returns max score for the dice plus indices that contribute.
+    // ============================================================
+    function evaluate(values, rs = activeRuleset) {
+        if (!values.length) return { score: 0, scoringIndices: [] };
+        const count = {};
+        values.forEach(v => { count[v] = (count[v] || 0) + 1; });
+
+        // Full-6 special combos (only valid on a fresh roll of 6)
+        if (values.length === 6) {
+            if (new Set(values).size === 6) {
+                return { score: rs.scoring.straight, scoringIndices: values.map((_, i) => i) };
+            }
+            const cv = Object.values(count);
+            if (cv.length === 3 && cv.every(c => c === 2)) {
+                return { score: rs.scoring.threePairs, scoringIndices: values.map((_, i) => i) };
+            }
+            if (rs.scoring.twoTriplets && cv.length === 2 && cv.every(c => c === 3)) {
+                return { score: rs.scoring.twoTriplets, scoringIndices: values.map((_, i) => i) };
+            }
+            if (rs.scoring.fourPlusPair && cv.length === 2 && cv.includes(2) && cv.includes(4)) {
+                return { score: rs.scoring.fourPlusPair, scoringIndices: values.map((_, i) => i) };
+            }
+        }
+
+        const scoringIndices = new Set();
+        let score = 0;
+
+        for (let n = 1; n <= 6; n++) {
+            const c = count[n] || 0;
+            if (c >= 3) {
+                values.forEach((v, i) => { if (v === n) scoringIndices.add(i); });
+                const tripleScore = rs.scoring.threeOfAKind[n];
+                const mult =
+                    c >= 6 && rs.scoring.sixOfAKindMultiplier ? rs.scoring.sixOfAKindMultiplier :
+                    c >= 5 && rs.scoring.fiveOfAKindMultiplier ? rs.scoring.fiveOfAKindMultiplier :
+                    c >= 4 && rs.scoring.fourOfAKindMultiplier ? rs.scoring.fourOfAKindMultiplier :
+                    null;
+                if (mult !== null) {
+                    score += tripleScore * mult;
+                } else {
+                    // No variant — count one triple, treat extras as singles (1s and 5s)
+                    score += tripleScore;
+                    const extras = c - 3;
+                    if (n === 1) score += extras * rs.scoring.ones;
+                    else if (n === 5) score += extras * rs.scoring.fives;
+                }
+            } else if (c > 0 && (n === 1 || n === 5)) {
+                values.forEach((v, i) => { if (v === n) scoringIndices.add(i); });
+                score += c * (n === 1 ? rs.scoring.ones : rs.scoring.fives);
+            }
+        }
+
+        return { score, scoringIndices: Array.from(scoringIndices) };
+    }
+
+    // ============================================================
+    //  STATE — selection is per-roll; locked is per-turn.
+    // ============================================================
+    const state = {
+        players: [], scores: [], farkleStreak: [],
+        currentPlayer: 0,
+        turnTotal: 0,              // points locked in this turn from prior rolls
+        rollScore: 0,              // tentative score of current selection (current roll only)
+        dice: [0,0,0,0,0,0],
+        locked: new Set(),         // indices committed from prior rolls this turn
+        selected: new Set(),       // indices picked in current roll (not yet locked)
+        scoringIndices: [],        // indices in current roll that could score
+        rolling: false,
+        hotDicePending: false,     // all 6 locked; awaiting Roll-again or Bank
+        winScore: 10000,
+        finalRound: false,         // someone has crossed the threshold
+        finalRoundTrigger: null,   // player idx who first crossed
+        gameOver: false,
+    };
+
+    const els = {
+        setup: document.getElementById('setup'),
+        game: document.getElementById('game'),
+        winScore: document.getElementById('winScore'),
+        targetScore: document.getElementById('targetScore'),
+        addPlayer: document.getElementById('addPlayer'),
+        startGame: document.getElementById('startGame'),
+        setupRulesBtn: document.getElementById('setupRulesBtn'),
+        playerList: document.getElementById('playerList'),
+        rollBtn: document.getElementById('rollBtn'),
+        bankBtn: document.getElementById('bankBtn'),
+        rulesBtn: document.getElementById('rulesBtn'),
+        soundBtn: document.getElementById('soundBtn'),
+        newGameBtn: document.getElementById('newGameBtn'),
+        diceContainer: document.getElementById('diceContainer'),
+        currentPlayer: document.getElementById('currentPlayer'),
+        turnScore: document.getElementById('turnScore'),
+        selectedScore: document.getElementById('selectedScore'),
+        rollScore: document.getElementById('rollScore'),
+        statusMessage: document.getElementById('statusMessage'),
+        scoreBoard: document.getElementById('scoreBoard'),
+        gameLog: document.getElementById('gameLog'),
+        rulesModal: document.getElementById('rulesModal'),
+        rulesContent: document.getElementById('rulesContent'),
+        closeRulesBtn: document.getElementById('closeRulesBtn'),
+    };
 
     document.addEventListener('DOMContentLoaded', () => {
-        els.addPlayer.onclick = () => { if (els.playerList.children.length >= 6) return alert('Max 6 players'); const d = document.createElement('div'); d.className = 'player-item'; d.innerHTML = `<input type="text" value="Player ${els.playerList.children.length + 1}"><button class="remove-player">×</button>`; els.playerList.appendChild(d); };
+        els.addPlayer.onclick = () => {
+            if (els.playerList.children.length >= 6) return alert('Max 6 players');
+            const d = document.createElement('div');
+            d.className = 'player-item';
+            d.innerHTML = `<input type="text" value="Player ${els.playerList.children.length + 1}"><button class="remove-player">×</button>`;
+            els.playerList.appendChild(d);
+        };
         els.startGame.onclick = startGame;
-        els.rollBtn.onclick = rollDice;
+        els.rollBtn.onclick = onRollClick;
         els.bankBtn.onclick = bankScore;
         els.newGameBtn.onclick = () => confirm('New game?') && location.reload();
-        els.soundBtn.onclick = () => { soundEnabled = !soundEnabled; els.soundBtn.textContent = soundEnabled ? 'Sound On' : 'Sound Off'; };
-        els.playerList.onclick = e => { if (e.target.classList.contains('remove-player')) e.target.parentElement.remove(); };
+        els.soundBtn.onclick = () => {
+            soundEnabled = !soundEnabled;
+            els.soundBtn.textContent = soundEnabled ? 'Sound On' : 'Sound Off';
+        };
+        els.playerList.onclick = e => {
+            if (e.target.classList.contains('remove-player')) e.target.parentElement.remove();
+        };
+        els.rulesBtn.onclick = openRules;
+        els.setupRulesBtn.onclick = openRules;
+        els.closeRulesBtn.onclick = closeRules;
+        els.rulesModal.onclick = e => { if (e.target === els.rulesModal) closeRules(); };
+        renderRules();
     });
 
     function startGame() {
         const names = [...els.playerList.querySelectorAll('input')].map(i => i.value.trim() || 'Player');
         if (!names.length) return alert('Add at least one player');
-        state.players = names; state.scores = names.map(() => 0);
-        state.winScore = Math.max(1000, parseInt(els.winScore.value) || 10000);
-        els.targetScore.innerHTML = `First to <strong>${state.winScore.toLocaleString()}</strong> wins!`;
-        els.setup.style.display = 'none'; els.game.style.display = 'block';
-        nextTurn(); log('Game started!');
+        state.players = names;
+        state.scores = names.map(() => 0);
+        state.farkleStreak = names.map(() => 0);
+        state.winScore = Math.max(1000, parseInt(els.winScore.value) || activeRuleset.defaultWinScore);
+        state.currentPlayer = 0;
+        state.finalRound = false;
+        state.finalRoundTrigger = null;
+        state.gameOver = false;
+        els.targetScore.innerHTML = `First to <strong>${state.winScore.toLocaleString()}</strong> wins! <span class="rules-legend">(${activeRuleset.name} rules)</span>`;
+        els.setup.style.display = 'none';
+        els.game.style.display = 'block';
+        log(`Game started — ${activeRuleset.name} rules — first to ${state.winScore.toLocaleString()}`);
+        nextTurn();
     }
 
     function nextTurn() {
-        state.turnTotal = 0; state.currentRollScore = 0;
-        state.dice = []; state.kept.clear(); state.activeDice = 6;
-        state.hotDice = false; state.rolling = false;
+        // Final-round termination: back to the player who first crossed → game over
+        if (state.finalRound && state.currentPlayer === state.finalRoundTrigger) {
+            endGame();
+            return;
+        }
+        state.turnTotal = 0;
+        state.rollScore = 0;
+        state.dice = [0,0,0,0,0,0];
+        state.locked.clear();
+        state.selected.clear();
+        state.scoringIndices = [];
+        state.hotDicePending = false;
+        state.rolling = false;
         els.diceContainer.innerHTML = '';
-        els.turnScore.textContent = '0'; els.selectedScore.textContent = 'Selected Points: 0';
-        els.rollScore.textContent = ''; els.statusMessage.textContent = '';
-        els.bankBtn.disabled = true; els.rollBtn.disabled = false;
-        updateCurrentPlayer(); updateScoreBoard();
-        log(`${state.players[state.currentPlayer]}'s turn`);
+        els.turnScore.textContent = '0';
+        els.selectedScore.textContent = 'Selected Points: 0';
+        els.rollScore.textContent = '';
+        els.statusMessage.textContent = '';
+        els.statusMessage.className = '';
+        els.statusMessage.style.color = '';
+        els.statusMessage.style.fontSize = '';
+        els.rollBtn.disabled = false;
+        els.rollBtn.textContent = 'Roll Dice';
+        els.bankBtn.disabled = true;
+        updateCurrentPlayer();
+        updateScoreBoard();
+        log(`${state.players[state.currentPlayer]}'s turn${state.finalRound ? ' (final round)' : ''}`);
     }
 
-    function updateCurrentPlayer() { els.currentPlayer.textContent = `${state.players[state.currentPlayer]}'s Turn`; }
+    function updateCurrentPlayer() {
+        els.currentPlayer.textContent = `${state.players[state.currentPlayer]}'s Turn`;
+    }
 
-    function calculateScoringDice(diceValues) {
-        const count = {}; diceValues.forEach(v => count[v] = (count[v] || 0) + 1);
-        const scoringIndices = new Set();
+    // The Roll button has three modes:
+    //   1. Initial roll of the turn → roll all 6
+    //   2. Subsequent roll → lock current selection (turn total += rollScore), roll remaining
+    //   3. Hot dice pending → clear locked, roll fresh 6
+    function onRollClick() {
+        if (state.rolling || state.gameOver) return;
 
-        // Special 6-dice hands
-        if (diceValues.length === 6) {
-            if (new Set(diceValues).size === 6) return { score: 1500, indices: diceValues.map((_, i) => i) };
-            if (Object.values(count).every(c => c === 2) && Object.keys(count).length === 3) return { score: 750, indices: diceValues.map((_, i) => i) };
-        }
+        const isInitialRoll = state.locked.size === 0 && state.selected.size === 0 && state.dice.every(v => v === 0);
 
-        // Mark all dice in 3+ of a kind
-        for (let n = 1; n <= 6; n++) {
-            if (count[n] >= 3) {
-                for (let i = 0; i < diceValues.length; i++) {
-                    if (diceValues[i] === n) scoringIndices.add(i);
-                }
+        if (state.hotDicePending) {
+            // Mode 3 — hot dice: clear locked, fresh 6
+            state.locked.clear();
+            state.hotDicePending = false;
+            state.scoringIndices = [];
+            els.statusMessage.textContent = '';
+            els.statusMessage.className = '';
+        } else if (!isInitialRoll) {
+            // Mode 2 — must have a valid selection
+            if (state.rollScore === 0) return;  // button should be disabled, but guard
+            state.selected.forEach(i => state.locked.add(i));
+            state.turnTotal += state.rollScore;
+            state.selected.clear();
+            state.rollScore = 0;
+            state.scoringIndices = [];
+
+            // Hot dice check — did locking just fill all 6?
+            if (state.locked.size === 6) {
+                state.hotDicePending = true;
+                renderDice(false);
+                updateScores();
+                els.statusMessage.textContent = '🔥 HOT DICE! Roll fresh 6 or Bank.';
+                els.statusMessage.className = 'hot-dice';
+                els.rollBtn.disabled = false;
+                els.rollBtn.textContent = 'Roll Hot Dice';
+                els.bankBtn.disabled = state.turnTotal === 0;
+                log(`HOT DICE! Turn total: ${state.turnTotal.toLocaleString()}`);
+                return;
             }
         }
+        // (Mode 1 — initial roll — falls through to the roll below)
 
-        // Single 1s and 5s (only if not part of a triple)
-        diceValues.forEach((v, i) => {
-            if ((v === 1 && count[1] < 3) || (v === 5 && count[5] < 3)) scoringIndices.add(i);
+        const indicesToRoll = [];
+        for (let i = 0; i < 6; i++) {
+            if (!state.locked.has(i)) indicesToRoll.push(i);
+        }
+        if (indicesToRoll.length === 0) return;  // safety
+
+        state.rolling = true;
+        els.rollBtn.disabled = true;
+        els.bankBtn.disabled = true;
+        playRoll();
+
+        indicesToRoll.forEach(i => {
+            state.dice[i] = Math.floor(Math.random() * 6) + 1;
         });
-
-        const score = calculateScore(diceValues);
-        return { score, indices: Array.from(scoringIndices) };
-    }
-
-    function calculateScore(values) {
-        if (!values.length) return 0;
-        const count = {}; values.forEach(v => count[v] = (count[v] || 0) + 1);
-        let score = 0;
-
-        // Special hands
-        if (values.length === 6 && (new Set(values).size === 6 || (Object.values(count).every(c => c === 2) && Object.keys(count).length === 3))) {
-            return values.length === 6 && new Set(values).size === 6 ? 1500 : 750;
-        }
-
-        // Triples and higher
-        for (let n = 1; n <= 6; n++) {
-            if (count[n] >= 3) {
-                const base = n === 1 ? 1000 : n * 100;
-                score += base * Math.floor(count[n] / 3);
-            }
-        }
-
-        // Leftover singles
-        if (count[1] < 3) score += (count[1] || 0) * 100;
-        if (count[5] < 3) score += (count[5] || 0) * 50;
-        return score;
-    }
-
-    function updateScores() {
-        const keptValues = [...state.kept].map(i => state.dice[i]);
-        state.currentRollScore = calculateScore(keptValues);
-        els.selectedScore.textContent = `Selected Points: ${state.currentRollScore.toLocaleString()}`;
-        els.turnScore.textContent = (state.turnTotal + state.currentRollScore).toLocaleString();
-        els.bankBtn.disabled = (state.turnTotal + state.currentRollScore) === 0;
-    }
-
-    function rollDice() {
-        if (state.rolling || state.activeDice === 0) return;
-        state.rolling = true; els.rollBtn.disabled = true; playRoll();
-
-        const roll = Array.from({length: state.activeDice}, () => Math.floor(Math.random() * 6) + 1);
-        let idx = 0;
-        if (!state.dice.length) state.dice = roll;
-        else for (let i = 0; i < state.dice.length; i++) if (!state.kept.has(i)) state.dice[i] = roll[idx++];
 
         renderDice(true);
 
         setTimeout(() => {
-            const fresh = [], freshIdx = [];
-            for (let i = 0; i < state.dice.length; i++) if (!state.kept.has(i)) { fresh.push(state.dice[i]); freshIdx.push(i); }
-            const { score, indices } = calculateScoringDice(fresh);
-            if (score === 0) { farkle(); return; }
+            // Evaluate ONLY the freshly-rolled dice (not the whole turn)
+            const freshValues = indicesToRoll.map(i => state.dice[i]);
+            const { score: rollMax, scoringIndices: localScoring } = evaluate(freshValues);
 
-            els.rollScore.textContent = `This roll can score: +${score}`;
-            indices.forEach(localIdx => {
-                const globalIdx = freshIdx[localIdx];
-                els.diceContainer.children[globalIdx].classList.add('scoring');
-            });
-
-            log(`Rolled: ${roll.join(', ')} → +${score}`);
-            updateScoreBoard(); state.rolling = false; els.rollBtn.disabled = false;
-
-            // Hot Dice check
-            if (fresh.length === indices.length && fresh.length > 0) {
-                setTimeout(triggerHotDice, 600);
+            if (rollMax === 0) {
+                handleFarkle(freshValues);
+                return;
             }
+
+            state.scoringIndices = localScoring.map(li => indicesToRoll[li]);
+            els.rollScore.textContent = `This roll can score up to: +${rollMax.toLocaleString()}`;
+            log(`Rolled: [${freshValues.join(', ')}] — up to +${rollMax.toLocaleString()}`);
+
+            state.rolling = false;
+            renderDice(false);
+            updateScores();
+            updateButtonStates();
         }, 900);
     }
 
-    function renderDice(anim = false) {
-        els.diceContainer.innerHTML = '';
-        state.dice.forEach((val, i) => {
-            const die = document.createElement('div');
-            die.className = `die d${val}${anim && !state.kept.has(i) ? ' rolling' : ''}`;
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('viewBox', '0 0 100 100');
-            const dots = {1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],4:[[25,25],[25,75],[75,25],[75,75]],5:[[25,25],[25,75],[50,50],[75,25],[75,75]],6:[[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]};
-            dots[val].forEach(([x,y]) => { const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 8); c.className = 'dot'; svg.appendChild(c); });
-            die.appendChild(svg);
-            die.onclick = () => {
-                if (state.rolling) return;
-                const isKept = state.kept.has(i);
-                const isScoring = die.classList.contains('scoring');
-                if (isKept) { state.kept.delete(i); state.activeDice++; die.classList.remove('kept'); }
-                else if (isScoring || state.kept.size > 0) { state.kept.add(i); state.activeDice--; die.classList.remove('scoring'); die.classList.add('kept'); }
-                updateScores();
-                if (state.activeDice === 0 && !state.hotDice) setTimeout(triggerHotDice, 400);
-            };
-            if (state.kept.has(i)) die.classList.add('kept');
-            els.diceContainer.appendChild(die);
-        });
+    // Click a die — toggle selection. Only scoring dice in the current roll can be selected.
+    function onDieClick(globalIdx) {
+        if (state.rolling || state.hotDicePending || state.gameOver) return;
+        if (state.locked.has(globalIdx)) return;  // locked dice are inert
+
+        if (state.selected.has(globalIdx)) {
+            state.selected.delete(globalIdx);
+        } else {
+            if (!state.scoringIndices.includes(globalIdx)) return;  // non-scoring, ignore
+            state.selected.add(globalIdx);
+        }
+
+        // Recompute rollScore from the selection only (no cross-roll combos)
+        const selectedValues = [...state.selected].map(i => state.dice[i]);
+        state.rollScore = evaluate(selectedValues).score;
+
+        renderDice(false);
         updateScores();
+        updateButtonStates();
     }
 
-    function triggerHotDice() {
-        state.hotDice = true;
-        // Critical fix: Add current roll score to turn total
-        const fresh = state.dice.filter((_, i) => !state.kept.has(i));
-        const hotDiceScore = calculateScore(fresh);
-        state.turnTotal += hotDiceScore;
-
-        state.currentRollScore = 0;
-        state.activeDice = 6; state.kept.clear(); state.dice = [];
-        els.diceContainer.innerHTML = '';
-        els.statusMessage.textContent = 'HOT DICE! Rolling all 6 again!';
-        els.statusMessage.className = 'hot-dice';
-        log(`HOT DICE! +${hotDiceScore} added to turn`);
+    function updateScores() {
+        els.selectedScore.textContent = `Selected Points: ${state.rollScore.toLocaleString()}`;
+        els.turnScore.textContent = (state.turnTotal + state.rollScore).toLocaleString();
         updateScoreBoard();
-        setTimeout(() => { state.hotDice = false; rollDice(); }, 1200);
+    }
+
+    function updateButtonStates() {
+        if (state.hotDicePending) {
+            els.rollBtn.disabled = false;
+            els.rollBtn.textContent = 'Roll Hot Dice';
+            els.bankBtn.disabled = state.turnTotal === 0;
+            return;
+        }
+        const hasValidSelection = state.rollScore > 0;
+        const hasPointsToBank = (state.turnTotal + state.rollScore) > 0;
+        els.rollBtn.disabled = !hasValidSelection;
+        els.bankBtn.disabled = !hasPointsToBank;
+        els.rollBtn.textContent = (state.locked.size > 0 || state.selected.size > 0) ? 'Roll Remaining' : 'Roll Dice';
+    }
+
+    function handleFarkle(roll) {
+        playFarkle();
+        els.statusMessage.textContent = 'BUST!';
+        els.statusMessage.className = 'farkle';
+
+        state.farkleStreak[state.currentPlayer]++;
+        state.turnTotal = 0;
+        state.rollScore = 0;
+
+        let msg = `${state.players[state.currentPlayer]} busted on [${roll.join(', ')}]!`;
+
+        const penalty = activeRuleset.rules.tripleFarklePenalty;
+        if (penalty && state.farkleStreak[state.currentPlayer] >= 3) {
+            state.scores[state.currentPlayer] = Math.max(0, state.scores[state.currentPlayer] + penalty);
+            state.farkleStreak[state.currentPlayer] = 0;
+            msg += ` Triple farkle! ${penalty} penalty.`;
+        }
+
+        log(msg);
+        updateScoreBoard();
+
+        setTimeout(() => {
+            state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+            nextTurn();
+        }, 2000);
     }
 
     function bankScore() {
-        if (state.turnTotal + state.currentRollScore === 0) return;
-        state.turnTotal += state.currentRollScore;
-        state.scores[state.currentPlayer] += state.turnTotal;
-        log(`${state.players[state.currentPlayer]} banks ${state.turnTotal.toLocaleString()}!`);
+        if (state.rolling || state.gameOver) return;
+
+        // hotDicePending: turnTotal already includes the just-locked points (selected was emptied at lock-time)
+        // Otherwise: also include the currently-selected dice
+        let banked = state.turnTotal;
+        if (!state.hotDicePending) banked += state.rollScore;
+        if (banked === 0) return;
+
+        state.farkleStreak[state.currentPlayer] = 0;  // banking resets streak
+        state.scores[state.currentPlayer] += banked;
+        log(`${state.players[state.currentPlayer]} banked ${banked.toLocaleString()} (total: ${state.scores[state.currentPlayer].toLocaleString()})`);
         updateScoreBoard();
-        if (state.scores[state.currentPlayer] >= state.winScore) { playWin(); triggerConfetti(); endGame(); return; }
+
+        // Threshold-crossing logic
+        if (state.scores[state.currentPlayer] >= state.winScore && !state.finalRound) {
+            if (activeRuleset.rules.oneMoreRoundAfterThreshold) {
+                state.finalRound = true;
+                state.finalRoundTrigger = state.currentPlayer;
+                log(`🏁 ${state.players[state.currentPlayer]} crossed ${state.winScore.toLocaleString()}! One last turn for everyone else.`);
+            } else {
+                playWin(); triggerConfetti(); endGame();
+                return;
+            }
+        }
+
         state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
         setTimeout(nextTurn, 800);
     }
 
-    function farkle() {
-        playFarkle();
-        els.statusMessage.textContent = 'BUST!';
-        els.statusMessage.className = 'farkle';
-        log(`${state.players[state.currentPlayer]} busted!`);
-        setTimeout(() => { state.currentPlayer = (state.currentPlayer + 1) % state.players.length; nextTurn(); }, 2000);
+    function endGame() {
+        state.gameOver = true;
+        els.rollBtn.disabled = true;
+        els.bankBtn.disabled = true;
+        let maxScore = -Infinity, winner = 0;
+        state.scores.forEach((s, i) => { if (s > maxScore) { maxScore = s; winner = i; } });
+        els.statusMessage.innerHTML = `🏆 ${state.players[winner]} WINS! (${maxScore.toLocaleString()})`;
+        els.statusMessage.className = '';
+        els.statusMessage.style.color = '#2ecc71';
+        els.statusMessage.style.fontSize = '2.2em';
+        log(`WINNER: ${state.players[winner]} with ${maxScore.toLocaleString()}!`);
+        playWin();
+        triggerConfetti();
+        updateScoreBoard();
+    }
+
+    function renderDice(anim) {
+        els.diceContainer.innerHTML = '';
+        state.dice.forEach((val, i) => {
+            if (val === 0) return;
+            const die = document.createElement('div');
+            die.className = `die d${val}`;
+            if (anim && !state.locked.has(i)) die.classList.add('rolling');
+            if (state.locked.has(i)) die.classList.add('locked');
+            else if (state.selected.has(i)) die.classList.add('selected');
+            else if (state.scoringIndices.includes(i)) die.classList.add('scoring');
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 100 100');
+            const dots = {1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],4:[[25,25],[25,75],[75,25],[75,75]],5:[[25,25],[25,75],[50,50],[75,25],[75,75]],6:[[25,25],[25,50],[25,75],[75,25],[75,50],[75,75]]};
+            dots[val].forEach(([x,y]) => {
+                const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 8);
+                c.setAttribute('class', 'dot');
+                svg.appendChild(c);
+            });
+            die.appendChild(svg);
+            die.onclick = () => onDieClick(i);
+            els.diceContainer.appendChild(die);
+        });
     }
 
     function updateScoreBoard() {
         els.scoreBoard.innerHTML = '';
         state.players.forEach((name, i) => {
             const div = document.createElement('div');
-            div.className = `player-score${i === state.currentPlayer ? ' current' : ''}${state.scores[i] >= state.winScore ? ' winner' : ''}`;
-            div.innerHTML = `<div style="font-weight:bold">${name}</div>
-                             <div style="font-size:1.4em">${state.scores[i].toLocaleString()}</div>
-                             ${i === state.currentPlayer && state.turnTotal > 0 ? `<div style="color:#2ecc71">+${state.turnTotal.toLocaleString()}</div>` : ''}`;
+            const isWinner = state.gameOver && state.scores[i] === Math.max(...state.scores);
+            div.className = `player-score${i === state.currentPlayer && !state.gameOver ? ' current' : ''}${isWinner ? ' winner' : ''}`;
+            const pending = (state.turnTotal + state.rollScore);
+            const turnDisplay = (i === state.currentPlayer && !state.gameOver && pending > 0)
+                ? `<div style="color:#2ecc71">+${pending.toLocaleString()}</div>`
+                : '';
+            const streakDisplay = (state.farkleStreak[i] > 0)
+                ? `<div style="font-size:.8em;color:#e74c3c">busts in a row: ${state.farkleStreak[i]}</div>`
+                : '';
+            const crossedFlag = (state.finalRound && state.finalRoundTrigger === i && !state.gameOver)
+                ? `<div style="font-size:.8em;color:#f1c40f">⚡ crossed ${state.winScore.toLocaleString()}</div>`
+                : '';
+            div.innerHTML = `
+                <div style="font-weight:bold">${name}</div>
+                <div style="font-size:1.4em">${state.scores[i].toLocaleString()}</div>
+                ${turnDisplay}${streakDisplay}${crossedFlag}`;
             els.scoreBoard.appendChild(div);
         });
     }
 
-    function endGame() {
-        els.rollBtn.disabled = els.bankBtn.disabled = true;
-        els.statusMessage.innerHTML = `${state.players[state.currentPlayer]} WINS!`;
-        els.statusMessage.style.color = '#2ecc71'; els.statusMessage.style.fontSize = '2.5em';
-        log(`WINNER: ${state.players[state.currentPlayer]}!`);
+    // ============================================================
+    //  RULES MODAL — generated from the active ruleset, so adding
+    //  a variant later automatically updates the displayed table.
+    // ============================================================
+    function openRules() { renderRules(); els.rulesModal.style.display = 'flex'; }
+    function closeRules() { els.rulesModal.style.display = 'none'; }
+
+    function renderRules() {
+        const rs = activeRuleset;
+        const sc = rs.scoring, r = rs.rules;
+        const lines = [];
+        lines.push(`<h3>${rs.name} Rules</h3>`);
+        lines.push(`<p style="opacity:.85">${rs.description}</p>`);
+        lines.push('<h4>Scoring</h4>');
+        lines.push('<table><tbody>');
+        lines.push(`<tr><td>Single 1</td><td>${sc.ones}</td></tr>`);
+        lines.push(`<tr><td>Single 5</td><td>${sc.fives}</td></tr>`);
+        for (let n = 1; n <= 6; n++) {
+            lines.push(`<tr><td>Three ${n}s</td><td>${sc.threeOfAKind[n].toLocaleString()}</td></tr>`);
+        }
+        lines.push(`<tr><td>Straight (1-2-3-4-5-6)</td><td>${sc.straight.toLocaleString()}</td></tr>`);
+        lines.push(`<tr><td>Three pairs</td><td>${sc.threePairs}</td></tr>`);
+        lines.push('</tbody></table>');
+        lines.push('<p class="rules-legend">Four+ of a kind: scores one triple plus extras as singles (1s = 100, 5s = 50). Variant multipliers coming later.</p>');
+        lines.push('<h4>Gameplay</h4>');
+        lines.push('<ul>');
+        lines.push('<li>Roll all 6 dice. Pick scoring dice. Roll remaining, or Bank.</li>');
+        lines.push('<li><strong>You must keep at least one scoring die from each roll.</strong></li>');
+        lines.push('<li>Dice from separate rolls cannot be combined into a single combo.</li>');
+        lines.push('<li>If a roll yields no scoring dice → <strong>BUST</strong>, and you lose all unbanked points for the turn.</li>');
+        if (r.tripleFarklePenalty) {
+            lines.push(`<li>Three busts in a row: <strong>${r.tripleFarklePenalty.toLocaleString()}</strong> penalty.</li>`);
+        }
+        lines.push('<li><strong>HOT DICE</strong>: when all 6 dice score in one turn, you can roll fresh 6 or Bank.</li>');
+        if (r.oneMoreRoundAfterThreshold) {
+            lines.push(`<li>When a player crosses the win threshold, every other player gets one last turn — highest score wins.</li>`);
+        }
+        lines.push('</ul>');
+        lines.push('<h4>Visual key</h4>');
+        lines.push('<ul>');
+        lines.push('<li><span style="color:#f1c40f">Yellow border</span> — die could contribute to a scoring combo</li>');
+        lines.push('<li><span style="color:#2ecc71">Green border</span> — die selected in current roll (click again to unselect)</li>');
+        lines.push('<li><span style="color:#7f8c8d">Gray, dim</span> — die locked from a previous roll this turn</li>');
+        lines.push('</ul>');
+        els.rulesContent.innerHTML = lines.join('');
     }
 
     function log(msg) {
