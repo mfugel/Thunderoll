@@ -302,9 +302,9 @@
 
     function farkle() {
         playFarkle();
-        els.statusMessage.textContent = 'FARKLE!';
+        els.statusMessage.textContent = 'BUST!';
         els.statusMessage.className = 'farkle';
-        log(`${state.players[state.currentPlayer]} farkled!`);
+        log(`${state.players[state.currentPlayer]} busted!`);
         setTimeout(() => { state.currentPlayer = (state.currentPlayer + 1) % state.players.length; nextTurn(); }, 2000);
     }
 
