@@ -1,10 +1,10 @@
-# ThunderRoll
+# Thunderoll
 A browser-based multiplayer Farkle-style dice game.
 
 To play, open the URL below in your browser. Add players and start the game. When you're happy with the points you've accumulated on your turn, hit the Bank Points button — it ends your turn, adds your points to your overall score, and advances to the next player.
 
 Live at:
-https://thunderroll.journeyswithjerseymark.com
+https://thunderoll.journeyswithjerseymark.com
 
 (Deploys automatically via Vercel on every push to `main`.)
 
