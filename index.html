@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thunderoll v0.6 – Multiplayer Dice Game</title>
-    <meta name="description" content="Thunderoll v0.6 – Multiplayer Farkle-style dice game with official scoring rules, hot dice, and triple-farkle penalty">
+    <title>Thunderoll v0.7 – Multiplayer Dice Game</title>
+    <meta name="description" content="Thunderoll v0.7 – Multiplayer Farkle-style dice game with official scoring, hot dice, triple-farkle penalty, and optional rule variations">
     <style>
         :root{--d1:#ff6b6b;--d2:#4834d4;--d3:#00d2d3;--d4:#ff9ff3;--d5:#54a0ff;--d6:#5f27cd}
         html,body{margin:0;padding:0;height:100%}
@@ -60,20 +60,46 @@
         .modal-content li{margin:6px 0;line-height:1.45}
         .modal-close{margin-top:16px;width:100%;background:#3498db}
         .rules-legend{font-size:.85em;opacity:.8;margin-top:8px}
+        .variations{margin:18px auto 6px;padding:14px 18px;background:rgba(255,255,255,.07);border-radius:10px;max-width:560px;border:1px dashed rgba(255,255,255,.25)}
+        .variations-title{font-weight:bold;color:#f1c40f;margin-bottom:8px;text-align:center;letter-spacing:.5px}
+        .variations label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+        .variations input[type=checkbox]{width:18px;height:18px;cursor:pointer}
+        .variations select{padding:6px 10px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff;cursor:pointer}
+        .variations select option{color:#000}
+        .win-preset{background:#34495e;font-size:.9em;padding:6px 10px}
+        .rule-hint{margin-top:8px;font-size:.95em;color:#f39c12;min-height:1.2em}
     </style>
 </head>
 <body>
 <div class="c">
-    <h1>Thunderoll v0.6</h1>
+    <h1>Thunderoll v0.7</h1>
     <div id="setup" class="setup">
         <h2>Game Setup</h2>
         <div class="setup-row">
             <label>Winning Score:</label>
             <input type="number" id="winScore" value="10000" min="1000" step="1000">
+            <button type="button" class="win-preset" data-val="5000">5K</button>
+            <button type="button" class="win-preset" data-val="10000">10K</button>
+            <button type="button" class="win-preset" data-val="20000">20K</button>
         </div>
         <div class="setup-row"><button id="addPlayer">Add Player</button></div>
         <div class="player-list" id="playerList">
             <div class="player-item"><input type="text" value="Player 1"><button class="remove-player">×</button></div>
+        </div>
+        <div class="variations">
+            <div class="variations-title">Rule Variations</div>
+            <div class="setup-row">
+                <label><input type="checkbox" id="bigMultipliers"> Big Multipliers — 4/5/6 of a Kind score ×2 / ×3 / ×4</label>
+            </div>
+            <div class="setup-row">
+                <label for="breakInScore">Break-in Score:</label>
+                <select id="breakInScore">
+                    <option value="0">Off</option>
+                    <option value="300">300 (must reach to get on board)</option>
+                    <option value="500">500</option>
+                    <option value="1000">1,000</option>
+                </select>
+            </div>
         </div>
         <div style="margin-top:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
             <button id="startGame" style="background:#2ecc71;font-size:1.2em;padding:14px 32px">Start Game</button>
@@ -95,6 +121,7 @@
             <div class="selected-score" id="selectedScore">Selected Points: 0</div>
             <div class="roll-score" id="rollScore"></div>
             <div>Turn Total: <strong id="turnScore">0</strong></div>
+            <div id="ruleHint" class="rule-hint"></div>
             <div id="statusMessage"></div>
         </div>
         <div class="score-board" id="scoreBoard"></div>
@@ -287,7 +314,30 @@
         rulesModal: document.getElementById('rulesModal'),
         rulesContent: document.getElementById('rulesContent'),
         closeRulesBtn: document.getElementById('closeRulesBtn'),
+        bigMultipliers: document.getElementById('bigMultipliers'),
+        breakInScore: document.getElementById('breakInScore'),
+        ruleHint: document.getElementById('ruleHint'),
+        winPresets: document.querySelectorAll('.win-preset'),
     };
+
+    // v0.7: rebuild activeRuleset from setup-screen toggles. Deep-cloning RULESETS.official
+    // keeps the canonical config pristine even after multiple games with different variants.
+    function syncRulesetFromUI() {
+        const r = JSON.parse(JSON.stringify(RULESETS.official));
+        const variants = [];
+        if (els.bigMultipliers && els.bigMultipliers.checked) {
+            r.scoring.fourOfAKindMultiplier = 2;
+            r.scoring.fiveOfAKindMultiplier = 3;
+            r.scoring.sixOfAKindMultiplier = 4;
+            variants.push('Big Multipliers');
+        }
+        const minScore = els.breakInScore ? parseInt(els.breakInScore.value, 10) || 0 : 0;
+        r.rules.minScoreToGetOnBoard = minScore;
+        if (minScore > 0) variants.push(`Break-in ${minScore.toLocaleString()}`);
+        r.activeVariants = variants;
+        if (variants.length) r.name = `Official + ${variants.join(' + ')}`;
+        activeRuleset = r;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         els.addPlayer.onclick = () => {
@@ -312,12 +362,16 @@
         els.setupRulesBtn.onclick = openRules;
         els.closeRulesBtn.onclick = closeRules;
         els.rulesModal.onclick = e => { if (e.target === els.rulesModal) closeRules(); };
+        els.winPresets.forEach(btn => {
+            btn.onclick = () => { els.winScore.value = btn.dataset.val; };
+        });
         renderRules();
     });
 
     function startGame() {
         const names = [...els.playerList.querySelectorAll('input')].map(i => i.value.trim() || 'Player');
         if (!names.length) return alert('Add at least one player');
+        syncRulesetFromUI();  // v0.7 — freeze variation choices into activeRuleset
         state.players = names;
         state.scores = names.map(() => 0);
         state.farkleStreak = names.map(() => 0);
@@ -360,6 +414,7 @@
         els.bankBtn.disabled = true;
         updateCurrentPlayer();
         updateScoreBoard();
+        updateRuleHint();
         log(`${state.players[state.currentPlayer]}'s turn${state.finalRound ? ' (final round)' : ''}`);
     }
 
@@ -477,14 +532,30 @@
         if (state.hotDicePending) {
             els.rollBtn.disabled = false;
             els.rollBtn.textContent = 'Roll Hot Dice';
-            els.bankBtn.disabled = state.turnTotal === 0;
+            els.bankBtn.disabled = state.turnTotal === 0 || blockedByBreakIn(state.turnTotal);
+            updateRuleHint();
             return;
         }
+        const projected = state.turnTotal + state.rollScore;
         const hasValidSelection = state.rollScore > 0;
-        const hasPointsToBank = (state.turnTotal + state.rollScore) > 0;
+        const hasPointsToBank = projected > 0;
         els.rollBtn.disabled = !hasValidSelection;
-        els.bankBtn.disabled = !hasPointsToBank;
+        els.bankBtn.disabled = !hasPointsToBank || blockedByBreakIn(projected);
         els.rollBtn.textContent = (state.locked.size > 0 || state.selected.size > 0) ? 'Roll Remaining' : 'Roll Dice';
+        updateRuleHint();
+    }
+
+    function updateRuleHint() {
+        if (!els.ruleHint) return;
+        const min = activeRuleset.rules.minScoreToGetOnBoard || 0;
+        if (min && state.scores[state.currentPlayer] === 0 && !state.gameOver) {
+            const projected = state.turnTotal + (state.hotDicePending ? 0 : state.rollScore);
+            if (projected < min) {
+                els.ruleHint.textContent = `Need ${min.toLocaleString()} to get on the board (have ${projected.toLocaleString()}).`;
+                return;
+            }
+        }
+        els.ruleHint.textContent = '';
     }
 
     function handleFarkle(roll) {
@@ -514,6 +585,15 @@
         }, 2000);
     }
 
+    // v0.7 — break-in rule: until a player has banked any points, they can't end
+    // their turn until they reach the threshold in a single turn.
+    function blockedByBreakIn(projectedBank) {
+        const min = activeRuleset.rules.minScoreToGetOnBoard || 0;
+        if (!min) return false;
+        if (state.scores[state.currentPlayer] > 0) return false;
+        return projectedBank < min;
+    }
+
     function bankScore() {
         if (state.rolling || state.gameOver) return;
 
@@ -522,6 +602,13 @@
         let banked = state.turnTotal;
         if (!state.hotDicePending) banked += state.rollScore;
         if (banked === 0) return;
+
+        if (blockedByBreakIn(banked)) {
+            const min = activeRuleset.rules.minScoreToGetOnBoard;
+            log(`${state.players[state.currentPlayer]} needs ${min.toLocaleString()} to get on board — keep rolling.`);
+            updateRuleHint();
+            return;
+        }
 
         state.farkleStreak[state.currentPlayer] = 0;  // banking resets streak
         state.scores[state.currentPlayer] += banked;
@@ -614,7 +701,13 @@
     //  RULES MODAL — generated from the active ruleset, so adding
     //  a variant later automatically updates the displayed table.
     // ============================================================
-    function openRules() { renderRules(); els.rulesModal.style.display = 'flex'; }
+    function openRules() {
+        // v0.7 — when opened from setup, mirror current toggle state so the modal previews variants.
+        // Once a game is underway, els.setup is hidden and we leave the locked-in ruleset alone.
+        if (els.setup.style.display !== 'none') syncRulesetFromUI();
+        renderRules();
+        els.rulesModal.style.display = 'flex';
+    }
     function closeRules() { els.rulesModal.style.display = 'none'; }
 
     function renderRules() {
@@ -632,8 +725,21 @@
         }
         lines.push(`<tr><td>Straight (1-2-3-4-5-6)</td><td>${sc.straight.toLocaleString()}</td></tr>`);
         lines.push(`<tr><td>Three pairs</td><td>${sc.threePairs}</td></tr>`);
+        if (sc.fourOfAKindMultiplier) {
+            lines.push(`<tr><td>Four of a kind</td><td>×${sc.fourOfAKindMultiplier} the triple value</td></tr>`);
+        }
+        if (sc.fiveOfAKindMultiplier) {
+            lines.push(`<tr><td>Five of a kind</td><td>×${sc.fiveOfAKindMultiplier} the triple value</td></tr>`);
+        }
+        if (sc.sixOfAKindMultiplier) {
+            lines.push(`<tr><td>Six of a kind</td><td>×${sc.sixOfAKindMultiplier} the triple value</td></tr>`);
+        }
         lines.push('</tbody></table>');
-        lines.push('<p class="rules-legend">Four+ of a kind: scores one triple plus extras as singles (1s = 100, 5s = 50). Variant multipliers coming later.</p>');
+        if (!sc.fourOfAKindMultiplier && !sc.fiveOfAKindMultiplier && !sc.sixOfAKindMultiplier) {
+            lines.push('<p class="rules-legend">Four+ of a kind: scores one triple plus extras as singles (1s = 100, 5s = 50). Toggle "Big Multipliers" in setup for the ×2 / ×3 / ×4 variant.</p>');
+        } else {
+            lines.push('<p class="rules-legend">Big Multipliers active — four/five/six of a kind multiply the triple value instead of treating extras as singles.</p>');
+        }
         lines.push('<h4>Gameplay</h4>');
         lines.push('<ul>');
         lines.push('<li>Roll all 6 dice. Pick scoring dice. Roll remaining, or Bank.</li>');
@@ -642,6 +748,9 @@
         lines.push('<li>If a roll yields no scoring dice → <strong>BUST</strong>, and you lose all unbanked points for the turn.</li>');
         if (r.tripleFarklePenalty) {
             lines.push(`<li>Three busts in a row: <strong>${r.tripleFarklePenalty.toLocaleString()}</strong> penalty.</li>`);
+        }
+        if (r.minScoreToGetOnBoard) {
+            lines.push(`<li><strong>Break-in:</strong> until you've banked any points, you must reach <strong>${r.minScoreToGetOnBoard.toLocaleString()}</strong> in a single turn before you can bank.</li>`);
         }
         lines.push('<li><strong>HOT DICE</strong>: when all 6 dice score in one turn, you can roll fresh 6 or Bank.</li>');
         if (r.oneMoreRoundAfterThreshold) {
