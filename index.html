@@ -3,83 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thunderoll v0.8 – Multiplayer Dice Game</title>
-    <meta name="description" content="Thunderoll v0.8 – Multiplayer Farkle-style dice game with official scoring, hot dice, optional rule variations (full house, two triples, big multipliers, break-in, more), and player icons">
+    <title>Thunderoll v0.9 – Multiplayer Dice Game</title>
+    <meta name="description" content="Thunderoll v0.9 – Multiplayer Farkle-style dice game with selectable themes, official scoring, hot dice, 7 optional rule variations, and per-player icons">
     <style>
-        :root{--d1:#ff6b6b;--d2:#4834d4;--d3:#00d2d3;--d4:#ff9ff3;--d5:#54a0ff;--d6:#5f27cd}
+        :root{
+            /* Dice colors — theme-independent; the dice are the game's identity */
+            --d1:#ff6b6b;--d2:#4834d4;--d3:#00d2d3;--d4:#ff9ff3;--d5:#54a0ff;--d6:#5f27cd;
+            /* Default theme — Twilight */
+            --bg-from:#667eea;--bg-to:#764ba2;
+            --container-bg:rgba(0,0,0,.4);
+            --panel-bg:rgba(255,255,255,.1);
+            --panel-bg-strong:rgba(255,255,255,.15);
+            --panel-border:rgba(255,255,255,.22);
+            --accent:#f1c40f;--accent-soft:rgba(241,196,15,.6);
+            --text:#fff;
+            --title-shadow:0 2px 6px rgba(0,0,0,.5);
+            --log-bg:rgba(0,0,0,.3);
+        }
+        body[data-theme="casino"]{
+            --bg-from:#0d4222;--bg-to:#1d6a3a;
+            --container-bg:rgba(0,20,10,.55);
+            --panel-bg:rgba(0,60,30,.45);
+            --panel-bg-strong:rgba(0,70,35,.6);
+            --panel-border:rgba(255,215,0,.35);
+            --accent:#ffd700;--accent-soft:rgba(255,215,0,.7);
+            --title-shadow:0 2px 6px rgba(0,0,0,.7),0 0 16px rgba(255,215,0,.35);
+            --log-bg:rgba(0,15,5,.55);
+        }
+        body[data-theme="sunset"]{
+            --bg-from:#ff7e5f;--bg-to:#feb47b;
+            --container-bg:rgba(60,10,0,.42);
+            --panel-bg:rgba(255,255,255,.18);
+            --panel-bg-strong:rgba(255,255,255,.25);
+            --panel-border:rgba(255,255,255,.4);
+            --accent:#ffe66d;--accent-soft:rgba(255,230,109,.7);
+            --title-shadow:0 2px 8px rgba(120,40,0,.5);
+            --log-bg:rgba(60,10,0,.45);
+        }
+        body[data-theme="forest"]{
+            --bg-from:#134e5e;--bg-to:#71b280;
+            --container-bg:rgba(0,30,30,.5);
+            --panel-bg:rgba(255,255,255,.1);
+            --panel-bg-strong:rgba(255,255,255,.15);
+            --panel-border:rgba(255,255,255,.22);
+            --accent:#f7d358;--accent-soft:rgba(247,211,88,.65);
+            --title-shadow:0 2px 6px rgba(0,30,20,.6);
+            --log-bg:rgba(0,20,20,.45);
+        }
+        body[data-theme="midnight"]{
+            --bg-from:#0f2027;--bg-to:#2c5364;
+            --container-bg:rgba(10,15,25,.65);
+            --panel-bg:rgba(255,255,255,.06);
+            --panel-bg-strong:rgba(255,255,255,.1);
+            --panel-border:rgba(0,212,255,.25);
+            --accent:#00d4ff;--accent-soft:rgba(0,212,255,.6);
+            --title-shadow:0 0 18px rgba(0,212,255,.5),0 2px 4px rgba(0,0,0,.6);
+            --log-bg:rgba(0,5,10,.55);
+        }
+
         html,body{margin:0;padding:0;height:100%}
-        body{font-family:Segoe UI,Tahoma,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px 10px;box-sizing:border-box;min-height:100vh;overflow-y:auto}
-        .c{max-width:1000px;margin:0 auto;background:rgba(0,0,0,.4);border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,.3);position:relative;z-index:10}
-        h1{text-align:center;font-size:2.8em;margin:0 0 10px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
-        .setup{background:rgba(255,255,255,.1);padding:20px;border-radius:12px;margin-bottom:20px;text-align:center}
+        body{font-family:'Segoe UI','Helvetica Neue',Tahoma,sans-serif;background:linear-gradient(135deg,var(--bg-from),var(--bg-to));color:var(--text);padding:20px 10px;box-sizing:border-box;min-height:100vh;overflow-y:auto;transition:background 600ms ease}
+        .c{max-width:1000px;margin:0 auto;background:var(--container-bg);border-radius:16px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.35);position:relative;z-index:10;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 400ms ease}
+        h1{text-align:center;font-size:2.8em;margin:0 0 10px;text-shadow:var(--title-shadow);letter-spacing:3px;font-weight:800;transition:text-shadow 400ms ease}
+        .setup{background:var(--panel-bg);padding:20px;border-radius:12px;margin-bottom:20px;text-align:center;transition:background 400ms ease}
         .setup-row{display:flex;justify-content:center;gap:12px;margin:15px 0;flex-wrap:wrap;align-items:center}
-        input[type=number]{padding:8px 12px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff;width:120px}
+        .setup-row label{font-weight:500}
+        input[type=number]{padding:8px 12px;border-radius:6px;border:none;background:var(--panel-bg-strong);color:var(--text);width:120px}
         .player-list{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:15px 0}
-        .player-item{display:flex;gap:8px;background:rgba(255,255,255,.15);padding:8px 12px;border-radius:8px}
-        .player-item input{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 8px;border-radius:6px;width:120px}
-        .player-item button{background:#e74c3c;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
-        button{background:#3498db;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:bold;transition:.2s}
-        button:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
-        button:disabled{opacity:.5;cursor:not-allowed}
+        .player-item{display:flex;gap:8px;background:var(--panel-bg-strong);padding:8px 12px;border-radius:10px;align-items:center;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease}
+        .player-item input{background:rgba(255,255,255,.2);border:none;color:var(--text);padding:6px 8px;border-radius:6px;width:120px}
+        .player-item button.remove-player{background:#e74c3c;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+        button{background:#3498db;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:bold;transition:transform .15s ease,box-shadow .2s ease,background .2s ease}
+        button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+        button:active:not(:disabled){transform:translateY(0)}
+        button:disabled{opacity:.45;cursor:not-allowed;transform:none}
         .top-controls{display:flex;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap;align-items:center}
         .sound-btn{background:#9b59b6 !important}
-        .current-player,.target-score{font-size:1.5em;text-align:center;margin:15px 0;padding:12px;background:rgba(255,255,255,.15);border-radius:12px}
+        .current-player,.target-score{font-size:1.5em;text-align:center;margin:15px 0;padding:12px;background:var(--panel-bg-strong);border-radius:12px;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease}
         .dice-container{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:30px 0;perspective:600px}
-        .die{width:70px;height:70px;border-radius:12px;cursor:pointer;transition:.3s;box-shadow:0 4px 12px rgba(0,0,0,.3);border:4px solid transparent;position:relative;overflow:hidden}
+        .die{width:70px;height:70px;border-radius:12px;cursor:pointer;transition:.3s;box-shadow:0 4px 12px rgba(0,0,0,.35);border:4px solid transparent;position:relative;overflow:hidden}
         .die.rolling{animation:r .8s cubic-bezier(.2,.8,.4,1)}
         @keyframes r{0%{transform:translateY(0) rotateX(0)}100%{transform:translateY(-20px) rotateX(720deg) rotateY(720deg)}}
         .die:hover:not(.kept):not(.rolling){transform:scale(1.08)}
-        .die.scoring{border-color:#f1c40f !important;box-shadow:0 0 30px #f1c40f}
+        .die.scoring{border-color:var(--accent) !important;box-shadow:0 0 30px var(--accent-soft)}
         .die.selected{border-color:#2ecc71 !important;box-shadow:0 0 30px #2ecc71;transform:scale(.95)}
         .die.locked{border-color:#7f8c8d !important;opacity:.55;cursor:not-allowed;transform:scale(.92);box-shadow:none}
         .die.d1{background:var(--d1)}.die.d2{background:var(--d2)}.die.d3{background:var(--d3)}.die.d4{background:var(--d4)}.die.d5{background:var(--d5)}.die.d6{background:var(--d6)}
         .die svg{width:100%;height:100%}
         .dot{fill:#fff}
         .score-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0}
-        .player-score{background:rgba(255,255,255,.15);padding:12px;border-radius:12px;text-align:center}
-        .player-score.current{border:3px solid #f1c40f;transform:scale(1.05)}
+        .player-score{background:var(--panel-bg-strong);padding:12px;border-radius:12px;text-align:center;border:1px solid transparent;transition:background .3s ease,transform .2s ease,border .2s ease,box-shadow .3s ease}
+        .player-score.current{border:3px solid var(--accent);transform:scale(1.05);box-shadow:0 0 24px var(--accent-soft)}
         .player-score.winner{border:3px solid #2ecc71;background:rgba(46,204,113,.3)}
         .turn-info{text-align:center;margin:15px 0}
         .selected-score{font-size:1.8em;color:#2ecc71;font-weight:bold}
-        .roll-score{font-size:1.4em;color:#f1c40f}
-        .log{max-height:120px;overflow-y:auto;background:rgba(0,0,0,.3);padding:10px;border-radius:8px;font-size:.9em;margin-top:20px}
+        .roll-score{font-size:1.4em;color:var(--accent)}
+        .log{max-height:120px;overflow-y:auto;background:var(--log-bg);padding:10px;border-radius:8px;font-size:.9em;margin-top:20px}
         .hot-dice,.farkle{font-weight:bold;font-size:1.5em}
-        .hot-dice{color:#f1c40f;animation:p 1.5s infinite}
+        .hot-dice{color:var(--accent);animation:p 1.5s infinite}
         .farkle{color:#e74c3c;animation:s .5s}
         @keyframes p{50%{opacity:.7}}@keyframes s{25%,75%{transform:translateX(-5px)}}
         canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
         .rules-btn{background:#16a085 !important}
         .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
         .modal-content{background:#2c3e50;padding:24px 28px;border-radius:12px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);color:#fff}
-        .modal-content h3{margin-top:0;color:#f1c40f}
-        .modal-content h4{margin-bottom:8px;margin-top:18px;color:#f1c40f}
+        .modal-content h3{margin-top:0;color:var(--accent)}
+        .modal-content h4{margin-bottom:8px;margin-top:18px;color:var(--accent)}
         .modal-content table{width:100%;border-collapse:collapse;margin:8px 0}
         .modal-content td{padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
-        .modal-content td:last-child{text-align:right;font-weight:bold;color:#f1c40f}
+        .modal-content td:last-child{text-align:right;font-weight:bold;color:var(--accent)}
         .modal-content ul{padding-left:20px;margin:8px 0}
         .modal-content li{margin:6px 0;line-height:1.45}
         .modal-close{margin-top:16px;width:100%;background:#3498db}
         .rules-legend{font-size:.85em;opacity:.8;margin-top:8px}
-        .variations{margin:18px auto 6px;padding:14px 18px;background:rgba(255,255,255,.07);border-radius:10px;max-width:620px;border:1px dashed rgba(255,255,255,.25)}
-        .variations-title{font-weight:bold;color:#f1c40f;margin-bottom:8px;text-align:center;letter-spacing:.5px}
+        .variations{margin:18px auto 6px;padding:14px 18px;background:rgba(255,255,255,.07);border-radius:10px;max-width:620px;border:1px dashed var(--panel-border);transition:border 400ms ease}
+        .variations-title{font-weight:bold;color:var(--accent);margin-bottom:8px;text-align:center;letter-spacing:.5px}
         .variations label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
-        .variations input[type=checkbox]{width:18px;height:18px;cursor:pointer}
-        .variations select{padding:6px 10px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff;cursor:pointer}
+        .variations input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--accent)}
+        .variations select{padding:6px 10px;border-radius:6px;border:none;background:var(--panel-bg-strong);color:var(--text);cursor:pointer}
         .variations select option{color:#000}
         .win-preset{background:#34495e;font-size:.9em;padding:6px 10px}
         .rule-hint{margin-top:8px;font-size:.95em;color:#f39c12;min-height:1.2em}
-        .player-icon{background:rgba(255,255,255,.15) !important;font-size:1.4em;padding:4px 8px !important;line-height:1;cursor:pointer}
-        .player-icon:hover{background:rgba(255,255,255,.3) !important}
-        .icon-picker{position:absolute;background:#2c3e50;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+        .player-icon{background:var(--panel-bg-strong) !important;font-size:1.4em;padding:4px 8px !important;line-height:1;cursor:pointer;border:1px solid var(--panel-border)}
+        .player-icon:hover{filter:brightness(1.25)}
+        .icon-picker{position:absolute;background:#2c3e50;border:1px solid var(--panel-border);border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.5)}
         .icon-picker button{background:rgba(255,255,255,.1);border:none;font-size:1.4em;width:36px;height:36px;border-radius:6px;cursor:pointer;padding:0;line-height:1}
-        .icon-picker button:hover{background:rgba(241,196,15,.4)}
+        .icon-picker button:hover{background:var(--accent-soft)}
+        .theme-row{justify-content:flex-end;margin-bottom:4px}
+        .theme-row select{padding:8px 14px;font-size:1em;border-radius:8px;border:1px solid var(--panel-border);background:var(--panel-bg-strong);color:var(--text);cursor:pointer;font-weight:600;letter-spacing:.3px}
+        .theme-row select option{color:#000;background:#fff}
+        .theme-row label{font-size:.95em;opacity:.85}
     </style>
 </head>
 <body>
 <div class="c">
-    <h1>Thunderoll v0.7</h1>
+    <h1>Thunderoll v0.9</h1>
     <div id="setup" class="setup">
         <h2>Game Setup</h2>
+        <div class="setup-row theme-row">
+            <label for="themePicker">Theme:</label>
+            <select id="themePicker">
+                <option value="twilight">🌆 Twilight</option>
+                <option value="casino">🎰 Casino</option>
+                <option value="sunset">🌅 Sunset</option>
+                <option value="forest">🌲 Forest</option>
+                <option value="midnight">🌌 Midnight</option>
+            </select>
+        </div>
         <div class="setup-row">
             <label>Winning Score:</label>
             <input type="number" id="winScore" value="10000" min="1000" step="1000">
@@ -355,7 +425,17 @@
         ruleHint: document.getElementById('ruleHint'),
         winPresets: document.querySelectorAll('.win-preset'),
         iconPicker: document.getElementById('iconPicker'),
+        themePicker: document.getElementById('themePicker'),
     };
+
+    // v0.9 — theme system. CSS variables on body[data-theme] do all the heavy lifting;
+    // this just toggles the attribute and persists the choice across reloads.
+    const VALID_THEMES = ['twilight', 'casino', 'sunset', 'forest', 'midnight'];
+    function applyTheme(name) {
+        if (!VALID_THEMES.includes(name)) name = 'twilight';
+        document.body.dataset.theme = name;
+        try { localStorage.setItem('thunderoll-theme', name); } catch (e) { /* private mode, no-op */ }
+    }
 
     // v0.8 — player icon set. Cycled on Add Player; user can re-pick via the icon button.
     const ICON_LIST = ['🐶','🐱','🦊','🐼','🐯','🦁','🐸','🦄','🐰','🐻','🦅','🐢'];
@@ -445,6 +525,12 @@
         els.winPresets.forEach(btn => {
             btn.onclick = () => { els.winScore.value = btn.dataset.val; };
         });
+        // v0.9 — load saved theme (or default) and wire the picker
+        let savedTheme = 'twilight';
+        try { savedTheme = localStorage.getItem('thunderoll-theme') || 'twilight'; } catch (e) {}
+        applyTheme(savedTheme);
+        els.themePicker.value = savedTheme;
+        els.themePicker.onchange = () => applyTheme(els.themePicker.value);
         renderRules();
     });
 
