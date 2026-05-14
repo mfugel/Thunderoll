@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thunderoll v0.7 – Multiplayer Dice Game</title>
-    <meta name="description" content="Thunderoll v0.7 – Multiplayer Farkle-style dice game with official scoring, hot dice, triple-farkle penalty, and optional rule variations">
+    <title>Thunderoll v0.8 – Multiplayer Dice Game</title>
+    <meta name="description" content="Thunderoll v0.8 – Multiplayer Farkle-style dice game with official scoring, hot dice, optional rule variations (full house, two triples, big multipliers, break-in, more), and player icons">
     <style>
         :root{--d1:#ff6b6b;--d2:#4834d4;--d3:#00d2d3;--d4:#ff9ff3;--d5:#54a0ff;--d6:#5f27cd}
         html,body{margin:0;padding:0;height:100%}
@@ -60,7 +60,7 @@
         .modal-content li{margin:6px 0;line-height:1.45}
         .modal-close{margin-top:16px;width:100%;background:#3498db}
         .rules-legend{font-size:.85em;opacity:.8;margin-top:8px}
-        .variations{margin:18px auto 6px;padding:14px 18px;background:rgba(255,255,255,.07);border-radius:10px;max-width:560px;border:1px dashed rgba(255,255,255,.25)}
+        .variations{margin:18px auto 6px;padding:14px 18px;background:rgba(255,255,255,.07);border-radius:10px;max-width:620px;border:1px dashed rgba(255,255,255,.25)}
         .variations-title{font-weight:bold;color:#f1c40f;margin-bottom:8px;text-align:center;letter-spacing:.5px}
         .variations label{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
         .variations input[type=checkbox]{width:18px;height:18px;cursor:pointer}
@@ -68,6 +68,11 @@
         .variations select option{color:#000}
         .win-preset{background:#34495e;font-size:.9em;padding:6px 10px}
         .rule-hint{margin-top:8px;font-size:.95em;color:#f39c12;min-height:1.2em}
+        .player-icon{background:rgba(255,255,255,.15) !important;font-size:1.4em;padding:4px 8px !important;line-height:1;cursor:pointer}
+        .player-icon:hover{background:rgba(255,255,255,.3) !important}
+        .icon-picker{position:absolute;background:#2c3e50;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(6,1fr);gap:4px;z-index:2000;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+        .icon-picker button{background:rgba(255,255,255,.1);border:none;font-size:1.4em;width:36px;height:36px;border-radius:6px;cursor:pointer;padding:0;line-height:1}
+        .icon-picker button:hover{background:rgba(241,196,15,.4)}
     </style>
 </head>
 <body>
@@ -84,12 +89,18 @@
         </div>
         <div class="setup-row"><button id="addPlayer">Add Player</button></div>
         <div class="player-list" id="playerList">
-            <div class="player-item"><input type="text" value="Player 1"><button class="remove-player">×</button></div>
+            <div class="player-item" data-icon="🐶"><button class="player-icon" type="button">🐶</button><input type="text" value="Player 1"><button class="remove-player">×</button></div>
         </div>
         <div class="variations">
             <div class="variations-title">Rule Variations</div>
             <div class="setup-row">
                 <label><input type="checkbox" id="bigMultipliers"> Big Multipliers — 4/5/6 of a Kind score ×2 / ×3 / ×4</label>
+            </div>
+            <div class="setup-row">
+                <label><input type="checkbox" id="fullHouse"> Full House — 3+2+1 shape = 1,500 (all 6 dice lock)</label>
+            </div>
+            <div class="setup-row">
+                <label><input type="checkbox" id="twoTriples"> Two Triples — two 3-of-a-kinds in one roll = 2,500</label>
             </div>
             <div class="setup-row">
                 <label for="breakInScore">Break-in Score:</label>
@@ -100,7 +111,23 @@
                     <option value="1000">1,000</option>
                 </select>
             </div>
+            <div class="setup-row">
+                <label for="triplePenalty">Triple-Bust Penalty:</label>
+                <select id="triplePenalty">
+                    <option value="0">Off</option>
+                    <option value="-500">-500</option>
+                    <option value="-1000" selected>-1,000 (default)</option>
+                </select>
+            </div>
+            <div class="setup-row">
+                <label for="straightValue">Straight (1-2-3-4-5-6):</label>
+                <select id="straightValue">
+                    <option value="1000" selected>1,000 (default)</option>
+                    <option value="1500">1,500</option>
+                </select>
+            </div>
         </div>
+        <div id="iconPicker" class="icon-picker" style="display:none"></div>
         <div style="margin-top:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
             <button id="startGame" style="background:#2ecc71;font-size:1.2em;padding:14px 32px">Start Game</button>
             <button id="setupRulesBtn" class="rules-btn" style="font-size:1em;padding:14px 24px">📖 Scoring Rules</button>
@@ -199,6 +226,7 @@
                 sixOfAKindMultiplier: null,    // e.g. 4
                 twoTriplets: null,             // e.g. 2500 — two 3-of-a-kinds in one roll
                 fourPlusPair: null,            // e.g. 1500 — 4-of-a-kind + a pair in one roll
+                fullHouse: null,               // e.g. 1500 — 3+2+1 shape on a 6-die roll (all 6 lock)
             },
             rules: {
                 tripleFarklePenalty: -1000,
@@ -235,6 +263,10 @@
             }
             if (rs.scoring.fourPlusPair && cv.length === 2 && cv.includes(2) && cv.includes(4)) {
                 return { score: rs.scoring.fourPlusPair, scoringIndices: values.map((_, i) => i) };
+            }
+            // v0.8 — Full House: shape {3,2,1} on a 6-die roll. All 6 dice lock.
+            if (rs.scoring.fullHouse && cv.length === 3 && cv.includes(3) && cv.includes(2) && cv.includes(1)) {
+                return { score: rs.scoring.fullHouse, scoringIndices: values.map((_, i) => i) };
             }
         }
 
@@ -273,7 +305,7 @@
     //  STATE — selection is per-roll; locked is per-turn.
     // ============================================================
     const state = {
-        players: [], scores: [], farkleStreak: [],
+        players: [], icons: [], scores: [], farkleStreak: [],
         currentPlayer: 0,
         turnTotal: 0,              // points locked in this turn from prior rolls
         rollScore: 0,              // tentative score of current selection (current roll only)
@@ -315,12 +347,21 @@
         rulesContent: document.getElementById('rulesContent'),
         closeRulesBtn: document.getElementById('closeRulesBtn'),
         bigMultipliers: document.getElementById('bigMultipliers'),
+        fullHouseToggle: document.getElementById('fullHouse'),
+        twoTriplesToggle: document.getElementById('twoTriples'),
         breakInScore: document.getElementById('breakInScore'),
+        triplePenalty: document.getElementById('triplePenalty'),
+        straightValue: document.getElementById('straightValue'),
         ruleHint: document.getElementById('ruleHint'),
         winPresets: document.querySelectorAll('.win-preset'),
+        iconPicker: document.getElementById('iconPicker'),
     };
 
-    // v0.7: rebuild activeRuleset from setup-screen toggles. Deep-cloning RULESETS.official
+    // v0.8 — player icon set. Cycled on Add Player; user can re-pick via the icon button.
+    const ICON_LIST = ['🐶','🐱','🦊','🐼','🐯','🦁','🐸','🦄','🐰','🐻','🦅','🐢'];
+    let iconPickerTarget = null;  // the .player-icon button currently being edited
+
+    // v0.7+ — rebuild activeRuleset from setup-screen toggles. Deep-cloning RULESETS.official
     // keeps the canonical config pristine even after multiple games with different variants.
     function syncRulesetFromUI() {
         const r = JSON.parse(JSON.stringify(RULESETS.official));
@@ -331,9 +372,23 @@
             r.scoring.sixOfAKindMultiplier = 4;
             variants.push('Big Multipliers');
         }
+        if (els.fullHouseToggle && els.fullHouseToggle.checked) {
+            r.scoring.fullHouse = 1500;
+            variants.push('Full House');
+        }
+        if (els.twoTriplesToggle && els.twoTriplesToggle.checked) {
+            r.scoring.twoTriplets = 2500;
+            variants.push('Two Triples');
+        }
         const minScore = els.breakInScore ? parseInt(els.breakInScore.value, 10) || 0 : 0;
         r.rules.minScoreToGetOnBoard = minScore;
         if (minScore > 0) variants.push(`Break-in ${minScore.toLocaleString()}`);
+        const penalty = els.triplePenalty ? parseInt(els.triplePenalty.value, 10) : -1000;
+        r.rules.tripleFarklePenalty = penalty;
+        if (penalty !== -1000) variants.push(penalty === 0 ? 'No triple-bust penalty' : `Triple-bust ${penalty}`);
+        const straight = els.straightValue ? parseInt(els.straightValue.value, 10) || 1000 : 1000;
+        r.scoring.straight = straight;
+        if (straight !== 1000) variants.push(`Straight ${straight.toLocaleString()}`);
         r.activeVariants = variants;
         if (variants.length) r.name = `Official + ${variants.join(' + ')}`;
         activeRuleset = r;
@@ -342,9 +397,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         els.addPlayer.onclick = () => {
             if (els.playerList.children.length >= 6) return alert('Max 6 players');
+            const idx = els.playerList.children.length;
+            const icon = ICON_LIST[idx % ICON_LIST.length];
             const d = document.createElement('div');
             d.className = 'player-item';
-            d.innerHTML = `<input type="text" value="Player ${els.playerList.children.length + 1}"><button class="remove-player">×</button>`;
+            d.dataset.icon = icon;
+            d.innerHTML = `<button class="player-icon" type="button">${icon}</button><input type="text" value="Player ${idx + 1}"><button class="remove-player">×</button>`;
             els.playerList.appendChild(d);
         };
         els.startGame.onclick = startGame;
@@ -356,8 +414,30 @@
             els.soundBtn.textContent = soundEnabled ? 'Sound On' : 'Sound Off';
         };
         els.playerList.onclick = e => {
-            if (e.target.classList.contains('remove-player')) e.target.parentElement.remove();
+            if (e.target.classList.contains('remove-player')) {
+                e.target.parentElement.remove();
+                return;
+            }
+            if (e.target.classList.contains('player-icon')) {
+                openIconPicker(e.target);
+                e.stopPropagation();
+            }
         };
+        els.iconPicker.onclick = e => {
+            const btn = e.target.closest('button');
+            if (!btn || !iconPickerTarget) return;
+            const icon = btn.dataset.icon;
+            iconPickerTarget.textContent = icon;
+            iconPickerTarget.closest('.player-item').dataset.icon = icon;
+            closeIconPicker();
+            e.stopPropagation();
+        };
+        document.addEventListener('click', e => {
+            if (els.iconPicker.style.display === 'none') return;
+            if (els.iconPicker.contains(e.target)) return;
+            if (e.target.classList && e.target.classList.contains('player-icon')) return;
+            closeIconPicker();
+        });
         els.rulesBtn.onclick = openRules;
         els.setupRulesBtn.onclick = openRules;
         els.closeRulesBtn.onclick = closeRules;
@@ -368,11 +448,33 @@
         renderRules();
     });
 
+    // v0.8 — icon picker. A single floating popup, repositioned next to the clicked icon button.
+    function openIconPicker(button) {
+        iconPickerTarget = button;
+        const rect = button.getBoundingClientRect();
+        els.iconPicker.innerHTML = ICON_LIST.map(ic => `<button type="button" data-icon="${ic}">${ic}</button>`).join('');
+        els.iconPicker.style.display = 'grid';
+        // Position below the button; clamp to viewport.
+        const pickerRect = els.iconPicker.getBoundingClientRect();
+        let left = rect.left + window.scrollX;
+        let top = rect.bottom + window.scrollY + 6;
+        if (left + pickerRect.width > window.innerWidth - 8) left = window.innerWidth - pickerRect.width - 8;
+        els.iconPicker.style.left = left + 'px';
+        els.iconPicker.style.top = top + 'px';
+    }
+    function closeIconPicker() {
+        els.iconPicker.style.display = 'none';
+        iconPickerTarget = null;
+    }
+
     function startGame() {
-        const names = [...els.playerList.querySelectorAll('input')].map(i => i.value.trim() || 'Player');
+        const items = [...els.playerList.querySelectorAll('.player-item')];
+        const names = items.map(it => it.querySelector('input').value.trim() || 'Player');
+        const icons = items.map((it, i) => it.dataset.icon || ICON_LIST[i % ICON_LIST.length]);
         if (!names.length) return alert('Add at least one player');
         syncRulesetFromUI();  // v0.7 — freeze variation choices into activeRuleset
         state.players = names;
+        state.icons = icons;
         state.scores = names.map(() => 0);
         state.farkleStreak = names.map(() => 0);
         state.winScore = Math.max(1000, parseInt(els.winScore.value) || activeRuleset.defaultWinScore);
@@ -419,7 +521,8 @@
     }
 
     function updateCurrentPlayer() {
-        els.currentPlayer.textContent = `${state.players[state.currentPlayer]}'s Turn`;
+        const icon = state.icons[state.currentPlayer] || '';
+        els.currentPlayer.textContent = `${icon} ${state.players[state.currentPlayer]}'s Turn`;
     }
 
     // The Roll button has three modes:
@@ -689,7 +792,9 @@
             const crossedFlag = (state.finalRound && state.finalRoundTrigger === i && !state.gameOver)
                 ? `<div style="font-size:.8em;color:#f1c40f">⚡ crossed ${state.winScore.toLocaleString()}</div>`
                 : '';
+            const icon = state.icons[i] || '';
             div.innerHTML = `
+                <div style="font-size:1.8em;line-height:1">${icon}</div>
                 <div style="font-weight:bold">${name}</div>
                 <div style="font-size:1.4em">${state.scores[i].toLocaleString()}</div>
                 ${turnDisplay}${streakDisplay}${crossedFlag}`;
@@ -725,6 +830,12 @@
         }
         lines.push(`<tr><td>Straight (1-2-3-4-5-6)</td><td>${sc.straight.toLocaleString()}</td></tr>`);
         lines.push(`<tr><td>Three pairs</td><td>${sc.threePairs}</td></tr>`);
+        if (sc.twoTriplets) {
+            lines.push(`<tr><td>Two triples (3+3)</td><td>${sc.twoTriplets.toLocaleString()}</td></tr>`);
+        }
+        if (sc.fullHouse) {
+            lines.push(`<tr><td>Full house (3+2+1)</td><td>${sc.fullHouse.toLocaleString()}</td></tr>`);
+        }
         if (sc.fourOfAKindMultiplier) {
             lines.push(`<tr><td>Four of a kind</td><td>×${sc.fourOfAKindMultiplier} the triple value</td></tr>`);
         }
