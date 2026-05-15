@@ -115,6 +115,15 @@
         .hot-dice{color:var(--accent);animation:p 1.5s infinite}
         .farkle{color:#e74c3c;animation:s .5s}
         @keyframes p{50%{opacity:.7}}@keyframes s{25%,75%{transform:translateX(-5px)}}
+        .bust-overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:9998;gap:14px}
+        .bust-stamp{font-family:'Arial Black','Helvetica Neue',sans-serif;font-size:clamp(60px,16vw,200px);font-weight:900;color:#e74c3c;letter-spacing:.04em;text-shadow:0 0 30px rgba(231,76,60,.8),4px 4px 0 #7a1f17;text-transform:uppercase;border:.08em solid #c0392b;padding:0 .25em;border-radius:.1em;background:rgba(0,0,0,.4);animation:bustStamp 1.6s cubic-bezier(.2,.9,.3,1.2) forwards}
+        .bust-sub{font-family:'Arial Black',sans-serif;font-size:clamp(22px,4vw,44px);font-weight:900;color:#fff;background:#c0392b;padding:.15em .5em;border-radius:6px;text-shadow:2px 2px 0 #7a1f17;letter-spacing:.05em;animation:bustSubIn 1.6s ease-out forwards;opacity:0}
+        @keyframes bustStamp{0%{transform:scale(0) rotate(-25deg);opacity:0}12%{transform:scale(1.35) rotate(-10deg);opacity:1}22%{transform:scale(.95) rotate(-10deg)}30%{transform:scale(1) rotate(-10deg)}85%{transform:scale(1) rotate(-10deg);opacity:1}100%{transform:scale(1.15) rotate(-10deg);opacity:0}}
+        @keyframes bustSubIn{0%,18%{opacity:0;transform:translateY(20px) scale(.6)}28%{opacity:1;transform:translateY(0) scale(1.1)}35%{transform:translateY(0) scale(1)}85%{opacity:1}100%{opacity:0}}
+        .bust-flash{position:fixed;inset:0;background:rgba(231,76,60,.55);pointer-events:none;z-index:9997;animation:bustFlash .55s ease-out forwards}
+        @keyframes bustFlash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+        .shake{animation:bustShake .55s cubic-bezier(.36,.07,.19,.97)}
+        @keyframes bustShake{0%,100%{transform:translate(0,0)}10%{transform:translate(-12px,-6px) rotate(-1deg)}20%{transform:translate(11px,5px) rotate(1deg)}30%{transform:translate(-9px,-4px) rotate(-1deg)}40%{transform:translate(9px,3px) rotate(1deg)}55%{transform:translate(-6px,-2px)}70%{transform:translate(5px,2px)}85%{transform:translate(-3px,-1px)}}
         canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
         .rules-btn{background:#16a085 !important}
         .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
@@ -288,10 +297,38 @@
         o.frequency.setValueAtTime(783.99,audioCtx.currentTime+0.2);o.frequency.setValueAtTime(1046.50,audioCtx.currentTime+0.3);
         g.gain.setValueAtTime(0.4,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+1.2);
         o.start();o.stop(audioCtx.currentTime+1.2); }
-    function playFarkle() { if(!soundEnabled) return; const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sawtooth';o.connect(g);g.connect(audioCtx.destination);
-        o.frequency.setValueAtTime(300,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(80,audioCtx.currentTime+0.6);
-        g.gain.setValueAtTime(0.5,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.7);
-        o.start();o.stop(audioCtx.currentTime+0.7); }
+    function playFarkle() {
+        if (!soundEnabled) return;
+        const t = audioCtx.currentTime;
+        // 1. Impact thud — deep sine burst
+        const thud = audioCtx.createOscillator(), thudGain = audioCtx.createGain();
+        thud.type = 'sine';
+        thud.frequency.setValueAtTime(110, t);
+        thud.frequency.exponentialRampToValueAtTime(40, t + 0.18);
+        thudGain.gain.setValueAtTime(0.0001, t);
+        thudGain.gain.exponentialRampToValueAtTime(0.6, t + 0.01);
+        thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+        thud.connect(thudGain); thudGain.connect(audioCtx.destination);
+        thud.start(t); thud.stop(t + 0.32);
+        // 2. Sad-trombone — descending wah-wah-wah-waaaah with a droop on the last note
+        const notes = [
+            { f: 311, at: 0.16, dur: 0.18 },  // Eb4
+            { f: 277, at: 0.34, dur: 0.18 },  // Db4
+            { f: 247, at: 0.52, dur: 0.20 },  // B3
+            { f: 196, at: 0.72, dur: 0.60 },  // G3 with droop
+        ];
+        notes.forEach((n, i) => {
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(n.f, t + n.at);
+            if (i === notes.length - 1) o.frequency.linearRampToValueAtTime(n.f * 0.85, t + n.at + n.dur);
+            g.gain.setValueAtTime(0.0001, t + n.at);
+            g.gain.exponentialRampToValueAtTime(0.32, t + n.at + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + n.at + n.dur);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(t + n.at); o.stop(t + n.at + n.dur + 0.05);
+        });
+    }
     function playRoll() { if(!soundEnabled) return; const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='square';o.connect(g);g.connect(audioCtx.destination);
         o.frequency.setValueAtTime(120,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(60,audioCtx.currentTime+0.12);
         g.gain.setValueAtTime(0.2,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.15);
@@ -820,13 +857,17 @@
         state.rollScore = 0;
 
         let msg = `${state.players[state.currentPlayer]} busted on [${roll.join(', ')}]!`;
+        let subtitle = null;
 
         const penalty = activeRuleset.rules.tripleFarklePenalty;
         if (penalty && state.farkleStreak[state.currentPlayer] >= 3) {
             state.scores[state.currentPlayer] = Math.max(0, state.scores[state.currentPlayer] + penalty);
             state.farkleStreak[state.currentPlayer] = 0;
             msg += ` Triple farkle! ${penalty} penalty.`;
+            subtitle = `TRIPLE BUST! ${penalty.toLocaleString()}`;
         }
+
+        triggerBustEffect(subtitle);
 
         log(msg);
         updateScoreBoard();
@@ -835,6 +876,19 @@
             state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
             nextTurn();
         }, 2000);
+    }
+
+    function triggerBustEffect(subtitle) {
+        const flash = document.createElement('div');
+        flash.className = 'bust-flash';
+        document.body.appendChild(flash);
+        const overlay = document.createElement('div');
+        overlay.className = 'bust-overlay';
+        overlay.innerHTML = `<div class="bust-stamp">BUST</div>${subtitle ? `<div class="bust-sub">${subtitle}</div>` : ''}`;
+        document.body.appendChild(overlay);
+        els.game.classList.add('shake');
+        setTimeout(() => { flash.remove(); els.game.classList.remove('shake'); }, 600);
+        setTimeout(() => overlay.remove(), 1800);
     }
 
     // v0.7 — break-in rule: until a player has banked any points, they can't end
