@@ -225,6 +225,10 @@
                 </select>
                 <button type="button" class="info-icon" data-info="straightValue" title="Click for details" aria-label="More info about Straight value">i</button>
             </div>
+            <div class="setup-row">
+                <label><input type="checkbox" id="hotDiceCanBank"> Hot Dice — allow banking instead of forcing reroll</label>
+                <button type="button" class="info-icon" data-info="hotDiceCanBank" title="Click for details" aria-label="More info about Hot Dice banking">i</button>
+            </div>
         </div>
         <div id="iconPicker" class="icon-picker" style="display:none"></div>
         <div style="margin-top:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
@@ -372,6 +376,7 @@
                 oneMoreRoundAfterThreshold: true,
                 minScoreToGetOnBoard: 0,
                 mustKeepEachRoll: true,
+                hotDiceCanBank: false,  // default: must reroll on hot dice; toggle on to allow banking
             },
         },
         // future variants slot in here — same shape, different numbers
@@ -515,6 +520,7 @@
         breakInScore: document.getElementById('breakInScore'),
         triplePenalty: document.getElementById('triplePenalty'),
         straightValue: document.getElementById('straightValue'),
+        hotDiceCanBank: document.getElementById('hotDiceCanBank'),
         ruleHint: document.getElementById('ruleHint'),
         winPresets: document.querySelectorAll('.win-preset'),
         iconPicker: document.getElementById('iconPicker'),
@@ -562,6 +568,10 @@
         const straight = els.straightValue ? parseInt(els.straightValue.value, 10) || 1000 : 1000;
         r.scoring.straight = straight;
         if (straight !== 1000) variants.push(`Straight ${straight.toLocaleString()}`);
+        if (els.hotDiceCanBank && els.hotDiceCanBank.checked) {
+            r.rules.hotDiceCanBank = true;
+            variants.push('Hot Dice can bank');
+        }
         r.activeVariants = variants;
         if (variants.length) r.name = `Official + ${variants.join(' + ')}`;
         activeRuleset = r;
@@ -741,11 +751,14 @@
                 state.hotDicePending = true;
                 renderDice(false);
                 updateScores();
-                els.statusMessage.textContent = '🔥 HOT DICE! Roll fresh 6 or Bank.';
+                const canBank = activeRuleset.rules.hotDiceCanBank;
+                els.statusMessage.textContent = canBank
+                    ? '🔥 HOT DICE! Roll fresh 6 or Bank.'
+                    : '🔥 HOT DICE! You must roll again!';
                 els.statusMessage.className = 'hot-dice';
                 els.rollBtn.disabled = false;
                 els.rollBtn.innerHTML = '<span aria-hidden="true">🔥</span> Roll Hot Dice';
-                els.bankBtn.disabled = state.turnTotal === 0;
+                els.bankBtn.disabled = !canBank || state.turnTotal === 0;
                 log(`HOT DICE! Turn total: ${state.turnTotal.toLocaleString()}`);
                 return;
             }
@@ -821,7 +834,8 @@
         if (state.hotDicePending) {
             els.rollBtn.disabled = false;
             els.rollBtn.innerHTML = '<span aria-hidden="true">🔥</span> Roll Hot Dice';
-            els.bankBtn.disabled = state.turnTotal === 0 || blockedByBreakIn(state.turnTotal);
+            const canBank = activeRuleset.rules.hotDiceCanBank;
+            els.bankBtn.disabled = !canBank || state.turnTotal === 0 || blockedByBreakIn(state.turnTotal);
             updateRuleHint();
             return;
         }
@@ -1094,6 +1108,16 @@
                    </ul>
                    <p class="rules-legend">All 6 dice lock as a unit when you take the straight.</p>`,
         },
+        hotDiceCanBank: {
+            title: 'Hot Dice — Allow Banking',
+            body: `<p>"Hot Dice" happens when every die you've rolled this turn has scored — all 6 are locked. By default in Thunderoll you <strong>must roll all 6 again</strong>: you can't stop on a hot streak.</p>
+                   <p>With this variation <strong>on</strong>, you get the choice when hot dice triggers — reroll the fresh 6 for more points, or bank what you have.</p>
+                   <ul>
+                     <li><strong>Off (default)</strong> — must reroll. Bank is disabled until the next roll resolves.</li>
+                     <li><strong>On</strong> — Bank is enabled alongside the reroll option.</li>
+                   </ul>
+                   <p class="rules-legend">The default is the riskier, more classic Farkle behavior — a hot streak forces another roll, which can wipe you out. Toggle this on for a more forgiving game.</p>`,
+        },
     };
 
     function openVariationInfo(key) {
@@ -1153,7 +1177,9 @@
         if (r.minScoreToGetOnBoard) {
             lines.push(`<li><strong>Break-in:</strong> until you've banked any points, you must reach <strong>${r.minScoreToGetOnBoard.toLocaleString()}</strong> in a single turn before you can bank.</li>`);
         }
-        lines.push('<li><strong>HOT DICE</strong>: when all 6 dice score in one turn, you can roll fresh 6 or Bank.</li>');
+        lines.push(r.hotDiceCanBank
+            ? '<li><strong>HOT DICE</strong>: when all 6 dice score in one turn, you can roll fresh 6 or Bank.</li>'
+            : '<li><strong>HOT DICE</strong>: when all 6 dice score in one turn, you <strong>must</strong> roll fresh 6 — banking is disabled until the next roll resolves. (Toggle "Hot Dice — allow banking" in setup to make banking optional.)</li>');
         if (r.oneMoreRoundAfterThreshold) {
             lines.push(`<li>When a player crosses the win threshold, every other player gets one last turn — highest score wins.</li>`);
         }
