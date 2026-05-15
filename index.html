@@ -129,6 +129,8 @@
         .variations input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--accent)}
         .variations select{padding:6px 10px;border-radius:6px;border:none;background:var(--panel-bg-strong);color:var(--text);cursor:pointer}
         .variations select option{color:#000}
+        .info-icon{background:transparent;border:1px solid var(--accent);color:var(--accent);font-size:.85em;font-weight:bold;cursor:pointer;padding:0;margin-left:6px;line-height:1;opacity:.75;border-radius:50%;box-shadow:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s ease,background .15s ease,transform .15s ease}
+        .info-icon:hover:not(:disabled){background:var(--accent-soft);opacity:1;transform:scale(1.12);box-shadow:none}
         .win-preset{background:#34495e;font-size:.9em;padding:6px 10px}
         .rule-hint{margin-top:8px;font-size:.95em;color:#f39c12;min-height:1.2em}
         .player-icon{background:var(--panel-bg-strong) !important;font-size:1.4em;padding:4px 8px !important;line-height:1;cursor:pointer;border:1px solid var(--panel-border)}
@@ -172,12 +174,15 @@
             <div class="variations-title">Rule Variations</div>
             <div class="setup-row">
                 <label><input type="checkbox" id="bigMultipliers"> Big Multipliers — 4/5/6 of a Kind score ×2 / ×3 / ×4</label>
+                <button type="button" class="info-icon" data-info="bigMultipliers" title="Click for details" aria-label="More info about Big Multipliers">i</button>
             </div>
             <div class="setup-row">
                 <label><input type="checkbox" id="fullHouse"> Full House — 3+2+1 shape = 1,500 (all 6 dice lock)</label>
+                <button type="button" class="info-icon" data-info="fullHouse" title="Click for details" aria-label="More info about Full House">i</button>
             </div>
             <div class="setup-row">
                 <label><input type="checkbox" id="twoTriples"> Two Triples — two 3-of-a-kinds in one roll = 2,500</label>
+                <button type="button" class="info-icon" data-info="twoTriples" title="Click for details" aria-label="More info about Two Triples">i</button>
             </div>
             <div class="setup-row">
                 <label for="breakInScore">Break-in Score:</label>
@@ -187,6 +192,7 @@
                     <option value="500">500</option>
                     <option value="1000">1,000</option>
                 </select>
+                <button type="button" class="info-icon" data-info="breakInScore" title="Click for details" aria-label="More info about Break-in Score">i</button>
             </div>
             <div class="setup-row">
                 <label for="triplePenalty">Triple-Bust Penalty:</label>
@@ -195,6 +201,7 @@
                     <option value="-500">-500</option>
                     <option value="-1000" selected>-1,000 (default)</option>
                 </select>
+                <button type="button" class="info-icon" data-info="triplePenalty" title="Click for details" aria-label="More info about Triple-Bust Penalty">i</button>
             </div>
             <div class="setup-row">
                 <label for="straightValue">Straight (1-2-3-4-5-6):</label>
@@ -202,6 +209,7 @@
                     <option value="1000" selected>1,000 (default)</option>
                     <option value="1500">1,500</option>
                 </select>
+                <button type="button" class="info-icon" data-info="straightValue" title="Click for details" aria-label="More info about Straight value">i</button>
             </div>
         </div>
         <div id="iconPicker" class="icon-picker" style="display:none"></div>
@@ -239,6 +247,14 @@
     <div class="modal-content">
         <div id="rulesContent"></div>
         <button id="closeRulesBtn" class="modal-close">Close</button>
+    </div>
+</div>
+
+<div id="variationInfoModal" class="modal" style="display:none">
+    <div class="modal-content">
+        <h3 id="variationInfoTitle"></h3>
+        <div id="variationInfoBody"></div>
+        <button id="closeVariationInfoBtn" class="modal-close">Got it</button>
     </div>
 </div>
 
@@ -423,6 +439,10 @@
         rulesModal: document.getElementById('rulesModal'),
         rulesContent: document.getElementById('rulesContent'),
         closeRulesBtn: document.getElementById('closeRulesBtn'),
+        variationInfoModal: document.getElementById('variationInfoModal'),
+        variationInfoTitle: document.getElementById('variationInfoTitle'),
+        variationInfoBody: document.getElementById('variationInfoBody'),
+        closeVariationInfoBtn: document.getElementById('closeVariationInfoBtn'),
         bigMultipliers: document.getElementById('bigMultipliers'),
         fullHouseToggle: document.getElementById('fullHouse'),
         twoTriplesToggle: document.getElementById('twoTriples'),
@@ -529,6 +549,11 @@
         els.setupRulesBtn.onclick = openRules;
         els.closeRulesBtn.onclick = closeRules;
         els.rulesModal.onclick = e => { if (e.target === els.rulesModal) closeRules(); };
+        document.querySelectorAll('.info-icon').forEach(btn => {
+            btn.onclick = e => { e.preventDefault(); e.stopPropagation(); openVariationInfo(btn.dataset.info); };
+        });
+        els.closeVariationInfoBtn.onclick = closeVariationInfo;
+        els.variationInfoModal.onclick = e => { if (e.target === els.variationInfoModal) closeVariationInfo(); };
         els.winPresets.forEach(btn => {
             btn.onclick = () => { els.winScore.value = btn.dataset.val; };
         });
@@ -907,6 +932,76 @@
         els.rulesModal.style.display = 'flex';
     }
     function closeRules() { els.rulesModal.style.display = 'none'; }
+
+    // Explanations for each rule variation toggle in the setup screen.
+    const VARIATION_INFO = {
+        bigMultipliers: {
+            title: 'Big Multipliers',
+            body: `<p>By default, rolling 4 / 5 / 6 of the same number scores the triple (e.g. three 4s = 400) plus the extras as singles. With <strong>Big Multipliers</strong> on, the triple value is multiplied:</p>
+                   <ul>
+                     <li><strong>4 of a Kind</strong> — triple × 2</li>
+                     <li><strong>5 of a Kind</strong> — triple × 3</li>
+                     <li><strong>6 of a Kind</strong> — triple × 4</li>
+                   </ul>
+                   <p><strong>Examples:</strong></p>
+                   <ul>
+                     <li>Four 4s = 400 × 2 = <strong>800</strong></li>
+                     <li>Five 6s = 600 × 3 = <strong>1,800</strong></li>
+                     <li>Six 1s = 1,000 × 4 = <strong>4,000</strong></li>
+                   </ul>
+                   <p class="rules-legend">Bigger payouts on lucky rolls — riskier hot-streak chasing.</p>`,
+        },
+        fullHouse: {
+            title: 'Full House',
+            body: `<p>On a <em>fresh roll of all 6 dice</em>, if the dice show a 3+2+1 shape — three of one number, two of another, and a single of a third — the entire roll scores <strong>1,500</strong> and all 6 dice lock together.</p>
+                   <p><strong>Example:</strong> rolling 5-5-5-2-2-3 = Full House = 1,500.</p>
+                   <p class="rules-legend">Adds a recognizable poker-like combo. The dice are scored as a unit — you can't split them up to take the triple alone.</p>`,
+        },
+        twoTriples: {
+            title: 'Two Triples',
+            body: `<p>On a <em>fresh roll of all 6 dice</em>, if you roll two different three-of-a-kinds (e.g. three 2s and three 5s), the entire roll scores a flat <strong>2,500</strong> regardless of which numbers.</p>
+                   <p><strong>Example:</strong> 3-3-3-6-6-6 = Two Triples = 2,500.</p>
+                   <p class="rules-legend">Without this toggle, the same dice would score the two triples separately (e.g. 300 + 600 = 900). Two Triples makes this rare shape much more rewarding.</p>`,
+        },
+        breakInScore: {
+            title: 'Break-in Score',
+            body: `<p>A common house rule. You must bank at least this many points in a <em>single turn</em> before any points count toward your total.</p>
+                   <ul>
+                     <li>Until you "break in," banking less than the threshold scores <strong>0</strong> for the turn.</li>
+                     <li>Once you're on the board, normal scoring resumes for the rest of the game.</li>
+                   </ul>
+                   <p><strong>Example with 500:</strong> a 300-point first turn = 0. A 550-point first turn = 550 banked. After that, any amount you bank counts.</p>
+                   <p class="rules-legend">Slows the early game and pushes players to take a bigger risk on their first turn.</p>`,
+        },
+        triplePenalty: {
+            title: 'Triple-Bust Penalty',
+            body: `<p>Farkling means rolling no scoring dice — your turn ends with no points. If you Farkle <strong>three turns in a row</strong>, this penalty is deducted from your total score.</p>
+                   <ul>
+                     <li><strong>Off</strong> — no penalty</li>
+                     <li><strong>-500</strong> or <strong>-1,000</strong> — that amount is subtracted</li>
+                   </ul>
+                   <p>Your total can go negative if you have fewer banked points than the penalty.</p>
+                   <p class="rules-legend">Punishes a cold streak. Standard Farkle rule; default is -1,000.</p>`,
+        },
+        straightValue: {
+            title: 'Straight (1-2-3-4-5-6)',
+            body: `<p>Rolling one of each number — 1, 2, 3, 4, 5, 6 — on a fresh roll of all 6 dice is called a <strong>straight</strong>. This sets how many points the straight is worth.</p>
+                   <ul>
+                     <li><strong>1,000</strong> — the most common rule (default)</li>
+                     <li><strong>1,500</strong> — used by some house rules to reward the rarity</li>
+                   </ul>
+                   <p class="rules-legend">All 6 dice lock as a unit when you take the straight.</p>`,
+        },
+    };
+
+    function openVariationInfo(key) {
+        const info = VARIATION_INFO[key];
+        if (!info) return;
+        els.variationInfoTitle.textContent = info.title;
+        els.variationInfoBody.innerHTML = info.body;
+        els.variationInfoModal.style.display = 'flex';
+    }
+    function closeVariationInfo() { els.variationInfoModal.style.display = 'none'; }
 
     function renderRules() {
         const rs = activeRuleset;
