@@ -116,8 +116,18 @@
         .farkle{color:#e74c3c;animation:s .5s}
         @keyframes p{50%{opacity:.7}}@keyframes s{25%,75%{transform:translateX(-5px)}}
         .bust-overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:9998;gap:14px}
+        .bust-name{font-family:'Arial Black',sans-serif;font-size:clamp(20px,3.5vw,40px);font-weight:900;color:#fff;text-shadow:0 0 15px rgba(231,76,60,.8),2px 2px 0 #7a1f17;letter-spacing:.04em;animation:bustNameIn 1.6s ease-out forwards;opacity:0;text-align:center}
         .bust-stamp{font-family:'Arial Black','Helvetica Neue',sans-serif;font-size:clamp(60px,16vw,200px);font-weight:900;color:#e74c3c;letter-spacing:.04em;text-shadow:0 0 30px rgba(231,76,60,.8),4px 4px 0 #7a1f17;text-transform:uppercase;border:.08em solid #c0392b;padding:0 .25em;border-radius:.1em;background:rgba(0,0,0,.4);animation:bustStamp 1.6s cubic-bezier(.2,.9,.3,1.2) forwards}
         .bust-sub{font-family:'Arial Black',sans-serif;font-size:clamp(22px,4vw,44px);font-weight:900;color:#fff;background:#c0392b;padding:.15em .5em;border-radius:6px;text-shadow:2px 2px 0 #7a1f17;letter-spacing:.05em;animation:bustSubIn 1.6s ease-out forwards;opacity:0}
+        @keyframes bustNameIn{0%{opacity:0;transform:translateY(-20px)}20%{opacity:1;transform:translateY(0)}85%{opacity:1}100%{opacity:0}}
+        .win-overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:9998;gap:18px;animation:winFade 6s ease-out forwards}
+        .win-name{font-family:'Arial Black',sans-serif;font-size:clamp(28px,5.5vw,64px);font-weight:900;color:#fff;letter-spacing:.04em;text-shadow:0 0 25px rgba(46,204,113,.8),3px 3px 0 #1d6f3f;animation:winNameIn 1.4s ease-out forwards;opacity:0;text-align:center}
+        .win-stamp{font-family:'Arial Black',sans-serif;font-size:clamp(72px,16vw,220px);font-weight:900;color:#f1c40f;letter-spacing:.04em;text-shadow:0 0 40px rgba(241,196,15,.9),5px 5px 0 #b8860b;text-transform:uppercase;border:.08em solid #b8860b;padding:0 .3em;border-radius:.12em;background:rgba(0,0,0,.45);animation:winStamp 1.6s cubic-bezier(.2,.9,.3,1.2) forwards;transform-origin:center}
+        .win-score{font-family:'Arial Black',sans-serif;font-size:clamp(22px,4vw,42px);font-weight:900;color:#fff;background:#27ae60;padding:.18em .6em;border-radius:8px;text-shadow:2px 2px 0 #1d6f3f;letter-spacing:.05em;animation:winScoreIn 1.6s ease-out forwards;opacity:0}
+        @keyframes winNameIn{0%{opacity:0;transform:translateY(-30px) scale(.9)}40%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:1}}
+        @keyframes winStamp{0%{transform:scale(0) rotate(15deg);opacity:0}15%{transform:scale(1.35) rotate(-6deg);opacity:1}28%{transform:scale(.95) rotate(0)}40%{transform:scale(1.08) rotate(0)}55%{transform:scale(1) rotate(0)}100%{transform:scale(1) rotate(0);opacity:1}}
+        @keyframes winScoreIn{0%,30%{opacity:0;transform:translateY(20px) scale(.6)}50%{opacity:1;transform:translateY(0) scale(1.15)}60%{transform:translateY(0) scale(1)}100%{opacity:1}}
+        @keyframes winFade{0%,75%{opacity:1}100%{opacity:0;visibility:hidden}}
         @keyframes bustStamp{0%{transform:scale(0) rotate(-25deg);opacity:0}12%{transform:scale(1.35) rotate(-10deg);opacity:1}22%{transform:scale(.95) rotate(-10deg)}30%{transform:scale(1) rotate(-10deg)}85%{transform:scale(1) rotate(-10deg);opacity:1}100%{transform:scale(1.15) rotate(-10deg);opacity:0}}
         @keyframes bustSubIn{0%,18%{opacity:0;transform:translateY(20px) scale(.6)}28%{opacity:1;transform:translateY(0) scale(1.1)}35%{transform:translateY(0) scale(1)}85%{opacity:1}100%{opacity:0}}
         .bust-flash{position:fixed;inset:0;background:rgba(231,76,60,.55);pointer-events:none;z-index:9997;animation:bustFlash .55s ease-out forwards}
@@ -881,7 +891,9 @@
             subtitle = `TRIPLE BUST! ${penalty.toLocaleString()}`;
         }
 
-        triggerBustEffect(subtitle);
+        const playerName = state.players[state.currentPlayer];
+        const playerIcon = state.icons[state.currentPlayer] || '';
+        triggerBustEffect(playerName, playerIcon, subtitle);
 
         log(msg);
         updateScoreBoard();
@@ -892,17 +904,28 @@
         }, 2000);
     }
 
-    function triggerBustEffect(subtitle) {
+    function triggerBustEffect(playerName, playerIcon, subtitle) {
         const flash = document.createElement('div');
         flash.className = 'bust-flash';
         document.body.appendChild(flash);
         const overlay = document.createElement('div');
         overlay.className = 'bust-overlay';
-        overlay.innerHTML = `<div class="bust-stamp">BUST</div>${subtitle ? `<div class="bust-sub">${subtitle}</div>` : ''}`;
+        const nameLabel = playerName ? `${playerIcon ? playerIcon + ' ' : ''}${playerName}` : '';
+        overlay.innerHTML = `${nameLabel ? `<div class="bust-name">${nameLabel}</div>` : ''}<div class="bust-stamp">BUST</div>${subtitle ? `<div class="bust-sub">${subtitle}</div>` : ''}`;
         document.body.appendChild(overlay);
         els.game.classList.add('shake');
         setTimeout(() => { flash.remove(); els.game.classList.remove('shake'); }, 600);
         setTimeout(() => overlay.remove(), 1800);
+    }
+
+    function triggerWinEffect(playerName, playerIcon, score) {
+        document.querySelectorAll('.win-overlay').forEach(n => n.remove());
+        const overlay = document.createElement('div');
+        overlay.className = 'win-overlay';
+        const nameLabel = `${playerIcon ? playerIcon + ' ' : ''}${playerName}`;
+        overlay.innerHTML = `<div class="win-name">${nameLabel}</div><div class="win-stamp">WINS!</div><div class="win-score">${score.toLocaleString()} pts</div>`;
+        document.body.appendChild(overlay);
+        setTimeout(() => overlay.remove(), 6200);
     }
 
     // v0.7 — break-in rule: until a player has banked any points, they can't end
@@ -964,6 +987,7 @@
         log(`WINNER: ${state.players[winner]} with ${maxScore.toLocaleString()}!`);
         playWin();
         triggerConfetti();
+        triggerWinEffect(state.players[winner], state.icons[winner] || '', maxScore);
         updateScoreBoard();
     }
 
