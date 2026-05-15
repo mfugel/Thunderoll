@@ -78,6 +78,13 @@
         button:active:not(:disabled){transform:translateY(0)}
         button:disabled{opacity:.45;cursor:not-allowed;transform:none}
         .top-controls{display:flex;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap;align-items:center}
+        #rollBtn,#bankBtn{font-size:1.25em;padding:14px 28px;border-radius:12px;letter-spacing:.3px;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+        #rollBtn{background:linear-gradient(135deg,#27ae60,#2ecc71);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+        #rollBtn:hover:not(:disabled){background:linear-gradient(135deg,#229954,#27ae60);box-shadow:0 6px 22px rgba(46,204,113,.55)}
+        #rollBtn:not(:disabled){animation:rollPulse 2.2s ease-in-out infinite}
+        @keyframes rollPulse{0%,100%{box-shadow:0 4px 14px rgba(46,204,113,.35)}50%{box-shadow:0 4px 22px rgba(46,204,113,.75)}}
+        #bankBtn{background:linear-gradient(135deg,#f39c12,#e67e22);text-shadow:0 1px 2px rgba(0,0,0,.25)}
+        #bankBtn:hover:not(:disabled){background:linear-gradient(135deg,#e67e22,#d35400);box-shadow:0 6px 22px rgba(243,156,18,.55)}
         .sound-btn{background:#9b59b6 !important}
         .current-player,.target-score{font-size:1.5em;text-align:center;margin:15px 0;padding:12px;background:var(--panel-bg-strong);border-radius:12px;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease}
         .dice-container{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:30px 0;perspective:600px}
@@ -205,8 +212,8 @@
     </div>
     <div id="game" style="display:none">
         <div class="top-controls">
-            <button id="rollBtn">Roll Dice</button>
-            <button id="bankBtn" disabled>Bank Score</button>
+            <button id="rollBtn"><span aria-hidden="true">🎲</span> Roll Dice</button>
+            <button id="bankBtn" disabled><span aria-hidden="true">💰</span> Bank Score</button>
             <button id="rulesBtn" class="rules-btn">📖 Rules</button>
             <button id="soundBtn" class="sound-btn">Sound On</button>
             <button id="newGameBtn" style="background:#95a5a6">New Game</button>
@@ -598,7 +605,7 @@
         els.statusMessage.style.color = '';
         els.statusMessage.style.fontSize = '';
         els.rollBtn.disabled = false;
-        els.rollBtn.textContent = 'Roll Dice';
+        els.rollBtn.innerHTML = '<span aria-hidden="true">🎲</span> Roll Dice';
         els.bankBtn.disabled = true;
         updateCurrentPlayer();
         updateScoreBoard();
@@ -644,7 +651,7 @@
                 els.statusMessage.textContent = '🔥 HOT DICE! Roll fresh 6 or Bank.';
                 els.statusMessage.className = 'hot-dice';
                 els.rollBtn.disabled = false;
-                els.rollBtn.textContent = 'Roll Hot Dice';
+                els.rollBtn.innerHTML = '<span aria-hidden="true">🔥</span> Roll Hot Dice';
                 els.bankBtn.disabled = state.turnTotal === 0;
                 log(`HOT DICE! Turn total: ${state.turnTotal.toLocaleString()}`);
                 return;
@@ -720,7 +727,7 @@
     function updateButtonStates() {
         if (state.hotDicePending) {
             els.rollBtn.disabled = false;
-            els.rollBtn.textContent = 'Roll Hot Dice';
+            els.rollBtn.innerHTML = '<span aria-hidden="true">🔥</span> Roll Hot Dice';
             els.bankBtn.disabled = state.turnTotal === 0 || blockedByBreakIn(state.turnTotal);
             updateRuleHint();
             return;
@@ -730,7 +737,7 @@
         const hasPointsToBank = projected > 0;
         els.rollBtn.disabled = !hasValidSelection;
         els.bankBtn.disabled = !hasPointsToBank || blockedByBreakIn(projected);
-        els.rollBtn.textContent = (state.locked.size > 0 || state.selected.size > 0) ? 'Roll Remaining' : 'Roll Dice';
+        els.rollBtn.innerHTML = (state.locked.size > 0 || state.selected.size > 0) ? '<span aria-hidden="true">🎲</span> Roll Remaining' : '<span aria-hidden="true">🎲</span> Roll Dice';
         updateRuleHint();
     }
 
