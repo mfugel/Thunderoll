@@ -177,7 +177,7 @@
                 <button type="button" class="info-icon" data-info="bigMultipliers" title="Click for details" aria-label="More info about Big Multipliers">i</button>
             </div>
             <div class="setup-row">
-                <label><input type="checkbox" id="fullHouse"> Full House — 3+2+1 shape = 1,500 (all 6 dice lock)</label>
+                <label><input type="checkbox" id="fullHouse"> Full House — 3+2 (5 dice) or 3+2+1 (6 dice) = 1,500</label>
                 <button type="button" class="info-icon" data-info="fullHouse" title="Click for details" aria-label="More info about Full House">i</button>
             </div>
             <div class="setup-row">
@@ -357,8 +357,26 @@
             if (rs.scoring.fourPlusPair && cv.length === 2 && cv.includes(2) && cv.includes(4)) {
                 return { score: rs.scoring.fourPlusPair, scoringIndices: values.map((_, i) => i) };
             }
-            // v0.8 — Full House: shape {3,2,1} on a 6-die roll. All 6 dice lock.
+            // Full House on a 6-die roll: shape {3,2,1}. The 5 dice in the {3,2} groups lock as
+            // the Full House. The singleton (the third number) is treated as a normal scoring die:
+            // if it's a 1 or 5 it can be banked alongside the Full House; otherwise it's left
+            // unscored so the player can reroll it.
             if (rs.scoring.fullHouse && cv.length === 3 && cv.includes(3) && cv.includes(2) && cv.includes(1)) {
+                const singletonNum = Number(Object.keys(count).find(k => count[k] === 1));
+                const fhIdx = [], singletonIdx = [];
+                values.forEach((v, i) => (v === singletonNum ? singletonIdx : fhIdx).push(i));
+                const extra = singletonNum === 1 ? rs.scoring.ones : singletonNum === 5 ? rs.scoring.fives : 0;
+                if (extra > 0) {
+                    return { score: rs.scoring.fullHouse + extra, scoringIndices: [...fhIdx, ...singletonIdx] };
+                }
+                return { score: rs.scoring.fullHouse, scoringIndices: fhIdx };
+            }
+        }
+
+        // Full House on a 5-die roll (or a 5-die selection): shape {3,2}. All 5 lock.
+        if (values.length === 5 && rs.scoring.fullHouse) {
+            const cv5 = Object.values(count);
+            if (cv5.length === 2 && cv5.includes(3) && cv5.includes(2)) {
                 return { score: rs.scoring.fullHouse, scoringIndices: values.map((_, i) => i) };
             }
         }
@@ -953,9 +971,24 @@
         },
         fullHouse: {
             title: 'Full House',
-            body: `<p>On a <em>fresh roll of all 6 dice</em>, if the dice show a 3+2+1 shape — three of one number, two of another, and a single of a third — the entire roll scores <strong>1,500</strong> and all 6 dice lock together.</p>
-                   <p><strong>Example:</strong> rolling 5-5-5-2-2-3 = Full House = 1,500.</p>
-                   <p class="rules-legend">Adds a recognizable poker-like combo. The dice are scored as a unit — you can't split them up to take the triple alone.</p>`,
+            body: `<p>A <strong>Full House</strong> is three of one number plus two of another (a 3+2 shape). Worth <strong>1,500</strong>. It can be claimed on either:</p>
+                   <ul>
+                     <li><strong>A 5-die roll</strong> — all 5 dice form the 3+2. All 5 lock as the Full House. (If you already had 1 die locked from earlier, that's hot dice — reroll fresh 6 or bank.)</li>
+                     <li><strong>A 6-die roll</strong> with shape 3+2+1 — five dice form the Full House and one leftover die is a singleton.</li>
+                   </ul>
+                   <p><strong>On a 6-die Full House you choose how to play the leftover:</strong></p>
+                   <ul>
+                     <li>If the leftover is a <strong>1 or 5</strong>, you can bank it alongside the Full House for 1,550 or 1,600 total.</li>
+                     <li>Or <strong>reroll just the leftover</strong> — the 5 Full House dice stay locked, and the leftover rolls again for a chance at more points.</li>
+                     <li>Or <strong>bank the 1,500</strong> as-is and end your turn.</li>
+                   </ul>
+                   <p><strong>Examples:</strong></p>
+                   <ul>
+                     <li>5-5-5-2-2-1 → FH (1,500) + leftover 1 (100) = <strong>1,600</strong> banked, or 1,500 and reroll the 1.</li>
+                     <li>3-3-3-6-6-4 → FH (1,500). The 4 can't be banked — reroll it or bank 1,500.</li>
+                     <li>5-5-5-2-2 (on a 5-die roll) → <strong>1,500</strong>; all 5 lock.</li>
+                   </ul>
+                   <p class="rules-legend">Unlike Straight or Three Pairs, Full House doesn't lock all 6 dice — the leftover stays in play.</p>`,
         },
         twoTriples: {
             title: 'Two Triples',
@@ -1022,7 +1055,7 @@
             lines.push(`<tr><td>Two triples (3+3)</td><td>${sc.twoTriplets.toLocaleString()}</td></tr>`);
         }
         if (sc.fullHouse) {
-            lines.push(`<tr><td>Full house (3+2+1)</td><td>${sc.fullHouse.toLocaleString()}</td></tr>`);
+            lines.push(`<tr><td>Full house (3+2, or 3+2+1)</td><td>${sc.fullHouse.toLocaleString()}</td></tr>`);
         }
         if (sc.fourOfAKindMultiplier) {
             lines.push(`<tr><td>Four of a kind</td><td>×${sc.fourOfAKindMultiplier} the triple value</td></tr>`);
