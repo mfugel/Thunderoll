@@ -87,6 +87,8 @@
         .player-item{display:flex;gap:8px;background:var(--panel-bg-strong);padding:8px 12px;border-radius:10px;align-items:center;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease}
         .player-item input{background:rgba(255,255,255,.2);border:none;color:var(--text);padding:6px 8px;border-radius:6px;width:120px}
         .player-item button.remove-player{background:#e74c3c;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+        .solo-notice{display:none;margin:8px auto 0;padding:8px 14px;background:var(--panel-bg-strong);border:1px dashed var(--accent);border-radius:8px;font-size:.88em;text-align:center;max-width:420px;opacity:.92}
+        .solo-notice.show{display:block}
         button{background:#3498db;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:bold;transition:transform .15s ease,box-shadow .2s ease,background .2s ease}
         button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
         button:active:not(:disabled){transform:translateY(0)}
@@ -216,6 +218,7 @@
         <div class="player-list" id="playerList">
             <div class="player-item" data-icon="🐶"><button class="player-icon" type="button">🐶</button><input type="text" value="Player 1"><button class="remove-player">×</button></div>
         </div>
+        <div id="soloNotice" class="solo-notice">⚡ Playing solo? <strong>🤖 Thunderbot</strong> will join as your opponent.</div>
         <div class="variations">
             <div class="variations-title">Rule Variations</div>
             <div class="setup-row">
@@ -527,6 +530,7 @@
         startGame: document.getElementById('startGame'),
         setupRulesBtn: document.getElementById('setupRulesBtn'),
         playerList: document.getElementById('playerList'),
+        soloNotice: document.getElementById('soloNotice'),
         rollBtn: document.getElementById('rollBtn'),
         bankBtn: document.getElementById('bankBtn'),
         rulesBtn: document.getElementById('rulesBtn'),
@@ -622,6 +626,7 @@
             d.dataset.icon = icon;
             d.innerHTML = `<button class="player-icon" type="button">${icon}</button><input type="text" value="Player ${idx + 1}"><button class="remove-player">×</button>`;
             els.playerList.appendChild(d);
+            refreshSoloNotice();
         };
         els.startGame.onclick = startGame;
         els.rollBtn.onclick = () => { if (!state.aiPlaying) onRollClick(); };
@@ -634,6 +639,7 @@
         els.playerList.onclick = e => {
             if (e.target.classList.contains('remove-player')) {
                 e.target.parentElement.remove();
+                refreshSoloNotice();
                 return;
             }
             if (e.target.classList.contains('player-icon')) {
@@ -675,6 +681,7 @@
         els.themePicker.value = savedTheme;
         els.themePicker.onchange = () => applyTheme(els.themePicker.value);
         renderRules();
+        refreshSoloNotice();
     });
 
     // v0.8 — icon picker. A single floating popup, repositioned next to the clicked icon button.
@@ -694,6 +701,11 @@
     function closeIconPicker() {
         els.iconPicker.style.display = 'none';
         iconPickerTarget = null;
+    }
+
+    function refreshSoloNotice() {
+        const n = els.playerList.children.length;
+        els.soloNotice.classList.toggle('show', n === 1);
     }
 
     function startGame() {
