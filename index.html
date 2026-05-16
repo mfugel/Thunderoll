@@ -20,6 +20,16 @@
             --title-shadow:0 2px 6px rgba(0,0,0,.5);
             --log-bg:rgba(0,0,0,.3);
         }
+        body[data-theme="thunderoll"]{
+            --bg-from:#f5a623;--bg-to:#d97a1f;
+            --container-bg:rgba(46,28,15,.85);
+            --panel-bg:rgba(255,235,205,.1);
+            --panel-bg-strong:rgba(58,39,24,.55);
+            --panel-border:rgba(255,200,100,.35);
+            --accent:#b39ae0;--accent-soft:rgba(179,154,224,.55);
+            --title-shadow:0 3px 10px rgba(0,0,0,.55);
+            --log-bg:rgba(30,18,10,.5);
+        }
         body[data-theme="casino"]{
             --bg-from:#0d4222;--bg-to:#1d6a3a;
             --container-bg:rgba(0,20,10,.55);
@@ -62,9 +72,13 @@
         }
 
         html,body{margin:0;padding:0;height:100%}
-        body{font-family:'Segoe UI','Helvetica Neue',Tahoma,sans-serif;background:linear-gradient(135deg,var(--bg-from),var(--bg-to));color:var(--text);padding:20px 10px;box-sizing:border-box;min-height:100vh;overflow-y:auto;transition:background 600ms ease}
-        .c{max-width:1000px;margin:0 auto;background:var(--container-bg);border-radius:16px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.35);position:relative;z-index:10;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 400ms ease}
-        h1{text-align:center;font-size:2.8em;margin:0 0 10px;text-shadow:var(--title-shadow);letter-spacing:3px;font-weight:800;transition:text-shadow 400ms ease}
+        body{font-family:'Segoe UI','Helvetica Neue',Tahoma,sans-serif;background:linear-gradient(135deg,var(--bg-from),var(--bg-to));color:var(--text);padding:14px 10px;box-sizing:border-box;min-height:100vh;overflow-y:auto;transition:background 600ms ease}
+        .c{max-width:1000px;margin:0 auto;background:var(--container-bg);border-radius:16px;padding:18px 22px;box-shadow:0 12px 40px rgba(0,0,0,.35);position:relative;z-index:10;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 400ms ease}
+        h1{font-size:2.2em;margin:0;text-shadow:var(--title-shadow);letter-spacing:2px;font-weight:800;line-height:1;transition:text-shadow 400ms ease}
+        .brand{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 0 12px}
+        .logo{width:clamp(64px,10vw,96px);height:auto;flex-shrink:0;filter:drop-shadow(0 3px 10px rgba(0,0,0,.4))}
+        .brand-text{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+        .version{font-size:.7em;opacity:.6;letter-spacing:2px;font-weight:600;margin-top:2px}
         .setup{background:var(--panel-bg);padding:20px;border-radius:12px;margin-bottom:20px;text-align:center;transition:background 400ms ease}
         .setup-row{display:flex;justify-content:center;gap:12px;margin:15px 0;flex-wrap:wrap;align-items:center}
         .setup-row label{font-weight:500}
@@ -77,7 +91,7 @@
         button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
         button:active:not(:disabled){transform:translateY(0)}
         button:disabled{opacity:.45;cursor:not-allowed;transform:none}
-        .top-controls{display:flex;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap;align-items:center}
+        .top-controls{display:flex;justify-content:center;gap:14px;margin:14px 0 16px;flex-wrap:wrap;align-items:center}
         #rollBtn,#bankBtn{font-size:1.25em;padding:14px 28px;border-radius:12px;letter-spacing:.3px;display:inline-flex;align-items:center;gap:10px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
         #rollBtn{background:linear-gradient(135deg,#27ae60,#2ecc71);text-shadow:0 1px 2px rgba(0,0,0,.25)}
         #rollBtn:hover:not(:disabled){background:linear-gradient(135deg,#229954,#27ae60);box-shadow:0 6px 22px rgba(46,204,113,.55)}
@@ -86,11 +100,12 @@
         #bankBtn{background:linear-gradient(135deg,#f39c12,#e67e22);text-shadow:0 1px 2px rgba(0,0,0,.25)}
         #bankBtn:hover:not(:disabled){background:linear-gradient(135deg,#e67e22,#d35400);box-shadow:0 6px 22px rgba(243,156,18,.55)}
         .sound-btn{background:#9b59b6 !important}
-        .current-player,.target-score{font-size:1.5em;text-align:center;margin:15px 0;padding:12px;background:var(--panel-bg-strong);border-radius:12px;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease}
-        .dice-container{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:30px 0;perspective:600px}
-        .bank-area{margin:20px auto 10px;padding:12px 18px 16px;background:rgba(127,140,141,.12);border:2px dashed rgba(127,140,141,.55);border-radius:14px;max-width:680px;display:none}
+        .header-row{display:flex;gap:12px;margin:14px 0}
+        .current-player,.target-score{font-size:1.3em;text-align:center;padding:10px 14px;background:var(--panel-bg-strong);border-radius:10px;border:1px solid var(--panel-border);transition:background 400ms ease,border 400ms ease;flex:1;min-width:0}
+        .dice-container{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:18px 0;perspective:600px}
+        .bank-area{margin:14px auto 8px;padding:10px 16px 14px;background:rgba(127,140,141,.12);border:2px dashed rgba(127,140,141,.55);border-radius:12px;max-width:680px;display:none}
         .bank-area.has-dice{display:block}
-        .bank-label{text-align:center;font-size:.85em;font-weight:bold;color:#bdc3c7;letter-spacing:1px;margin-bottom:10px;text-transform:uppercase}
+        .bank-label{text-align:center;font-size:.82em;font-weight:bold;color:#bdc3c7;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase}
         .bank-dice{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:0;perspective:none}
         .bank-dice .die.locked{opacity:.9;transform:none;cursor:default;border-color:#95a5a6 !important;box-shadow:0 2px 6px rgba(0,0,0,.3)}
         .die{width:70px;height:70px;border-radius:12px;cursor:pointer;transition:.3s;box-shadow:0 4px 12px rgba(0,0,0,.35);border:4px solid transparent;position:relative;overflow:hidden}
@@ -103,14 +118,14 @@
         .die.d1{background:var(--d1)}.die.d2{background:var(--d2)}.die.d3{background:var(--d3)}.die.d4{background:var(--d4)}.die.d5{background:var(--d5)}.die.d6{background:var(--d6)}
         .die svg{width:100%;height:100%}
         .dot{fill:#fff}
-        .score-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:20px 0}
-        .player-score{background:var(--panel-bg-strong);padding:12px;border-radius:12px;text-align:center;border:1px solid transparent;transition:background .3s ease,transform .2s ease,border .2s ease,box-shadow .3s ease}
+        .score-board{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
+        .player-score{background:var(--panel-bg-strong);padding:10px 12px;border-radius:10px;text-align:center;border:1px solid transparent;transition:background .3s ease,transform .2s ease,border .2s ease,box-shadow .3s ease}
         .player-score.current{border:3px solid var(--accent);transform:scale(1.05);box-shadow:0 0 24px var(--accent-soft)}
         .player-score.winner{border:3px solid #2ecc71;background:rgba(46,204,113,.3)}
-        .turn-info{text-align:center;margin:15px 0}
-        .selected-score{font-size:1.8em;color:#2ecc71;font-weight:bold}
-        .roll-score{font-size:1.4em;color:var(--accent)}
-        .log{max-height:120px;overflow-y:auto;background:var(--log-bg);padding:10px;border-radius:8px;font-size:.9em;margin-top:20px}
+        .turn-info{text-align:center;margin:12px 0;display:flex;justify-content:center;gap:22px;flex-wrap:wrap;align-items:baseline}
+        .selected-score{font-size:1.4em;color:#2ecc71;font-weight:bold}
+        .roll-score{font-size:1.15em;color:var(--accent)}
+        .log{max-height:100px;overflow-y:auto;background:var(--log-bg);padding:10px;border-radius:8px;font-size:.88em;margin-top:14px}
         .hot-dice,.farkle{font-weight:bold;font-size:1.5em}
         .hot-dice{color:var(--accent);animation:p 1.5s infinite}
         .farkle{color:#e74c3c;animation:s .5s}
@@ -170,12 +185,19 @@
 </head>
 <body>
 <div class="c">
-    <h1>Thunderoll v0.9</h1>
+    <div class="brand">
+        <img src="images/thunderoll.png" alt="Thunderoll" class="logo">
+        <div class="brand-text">
+            <h1>Thunderoll</h1>
+            <div class="version">V0.9</div>
+        </div>
+    </div>
     <div id="setup" class="setup">
         <h2>Game Setup</h2>
         <div class="setup-row theme-row">
             <label for="themePicker">Theme:</label>
             <select id="themePicker">
+                <option value="thunderoll">⚡ Thunderoll</option>
                 <option value="twilight">🌆 Twilight</option>
                 <option value="casino">🎰 Casino</option>
                 <option value="sunset">🌅 Sunset</option>
@@ -254,8 +276,10 @@
             <button id="soundBtn" class="sound-btn">Sound On</button>
             <button id="newGameBtn" style="background:#95a5a6">New Game</button>
         </div>
-        <div class="current-player" id="currentPlayer"></div>
-        <div class="target-score" id="targetScore">First to <strong>10,000</strong> wins!</div>
+        <div class="header-row">
+            <div class="current-player" id="currentPlayer"></div>
+            <div class="target-score" id="targetScore">First to <strong>10,000</strong> wins!</div>
+        </div>
         <div class="bank-area" id="bankArea">
             <div class="bank-label">🔒 Locked This Turn</div>
             <div class="dice-container bank-dice" id="bankContainer"></div>
@@ -477,7 +501,8 @@
     //  STATE — selection is per-roll; locked is per-turn.
     // ============================================================
     const state = {
-        players: [], icons: [], scores: [], farkleStreak: [],
+        players: [], icons: [], isAI: [], scores: [], farkleStreak: [],
+        aiPlaying: false,
         currentPlayer: 0,
         turnTotal: 0,              // points locked in this turn from prior rolls
         rollScore: 0,              // tentative score of current selection (current roll only)
@@ -543,7 +568,7 @@
     function applyTheme(name) {
         if (!VALID_THEMES.includes(name)) name = 'twilight';
         document.body.dataset.theme = name;
-        try { localStorage.setItem('thunderoll-theme', name); } catch (e) { /* private mode, no-op */ }
+        try { localStorage.setItem('thunderoll-theme-v2', name); } catch (e) { /* private mode, no-op */ }
     }
 
     // v0.8 — player icon set. Cycled on Add Player; user can re-pick via the icon button.
@@ -599,8 +624,8 @@
             els.playerList.appendChild(d);
         };
         els.startGame.onclick = startGame;
-        els.rollBtn.onclick = onRollClick;
-        els.bankBtn.onclick = bankScore;
+        els.rollBtn.onclick = () => { if (!state.aiPlaying) onRollClick(); };
+        els.bankBtn.onclick = () => { if (!state.aiPlaying) bankScore(); };
         els.newGameBtn.onclick = () => confirm('New game?') && location.reload();
         els.soundBtn.onclick = () => {
             soundEnabled = !soundEnabled;
@@ -644,8 +669,8 @@
             btn.onclick = () => { els.winScore.value = btn.dataset.val; };
         });
         // v0.9 — load saved theme (or default) and wire the picker
-        let savedTheme = 'twilight';
-        try { savedTheme = localStorage.getItem('thunderoll-theme') || 'twilight'; } catch (e) {}
+        let savedTheme = 'thunderoll';
+        try { savedTheme = localStorage.getItem('thunderoll-theme-v2') || 'thunderoll'; } catch (e) {}
         applyTheme(savedTheme);
         els.themePicker.value = savedTheme;
         els.themePicker.onchange = () => applyTheme(els.themePicker.value);
@@ -676,9 +701,17 @@
         const names = items.map(it => it.querySelector('input').value.trim() || 'Player');
         const icons = items.map((it, i) => it.dataset.icon || ICON_LIST[i % ICON_LIST.length]);
         if (!names.length) return alert('Add at least one player');
+        const isAI = names.map(() => false);
+        // Single-player → auto-add the Thunderbot as the opponent.
+        if (names.length === 1) {
+            names.push('Thunderbot');
+            icons.push('🤖');
+            isAI.push(true);
+        }
         syncRulesetFromUI();  // v0.7 — freeze variation choices into activeRuleset
         state.players = names;
         state.icons = icons;
+        state.isAI = isAI;
         state.scores = names.map(() => 0);
         state.farkleStreak = names.map(() => 0);
         state.winScore = Math.max(1000, parseInt(els.winScore.value) || activeRuleset.defaultWinScore);
@@ -724,6 +757,83 @@
         updateScoreBoard();
         updateRuleHint();
         log(`${state.players[state.currentPlayer]}'s turn${state.finalRound ? ' (final round)' : ''}`);
+        if (state.isAI[state.currentPlayer]) {
+            state.aiPlaying = true;
+            els.statusMessage.textContent = '🤖 Thunderbot is thinking…';
+            els.statusMessage.className = '';
+            setTimeout(aiTakeTurn, 1100);
+        } else {
+            state.aiPlaying = false;
+        }
+    }
+
+    // ============================================================
+    //  AI — Thunderbot. Simple risk-based heuristic.
+    //  Plays via the same onRollClick / onDieClick / bankScore the
+    //  human would use, paced with timeouts so the human can follow.
+    // ============================================================
+    function aiTakeTurn() {
+        if (state.gameOver || !state.isAI[state.currentPlayer]) { state.aiPlaying = false; return; }
+        onRollClick();
+        setTimeout(aiAfterRoll, 1050);
+    }
+
+    function aiAfterRoll() {
+        if (state.gameOver) { state.aiPlaying = false; return; }
+        // Farkle path already advanced the turn (with its own 2s timeout).
+        if (!state.isAI[state.currentPlayer]) { state.aiPlaying = false; return; }
+
+        // Hot dice — bank if rule allows AND we'd not overshoot uselessly; otherwise roll.
+        if (state.hotDicePending) {
+            const canBank = activeRuleset.rules.hotDiceCanBank;
+            if (canBank && !els.bankBtn.disabled) {
+                setTimeout(() => { bankScore(); }, 700);
+            } else {
+                setTimeout(aiTakeTurn, 800);
+            }
+            return;
+        }
+
+        // Pick every scoring die from this roll.
+        const toPick = state.scoringIndices.filter(i => !state.locked.has(i) && !state.selected.has(i));
+        toPick.forEach((idx, n) => setTimeout(() => onDieClick(idx, true), 350 + n * 250));
+        const settleDelay = 500 + toPick.length * 250;
+
+        setTimeout(() => {
+            if (state.gameOver || !state.isAI[state.currentPlayer]) { state.aiPlaying = false; return; }
+            // After picking, decide roll vs bank.
+            const projectedBank = state.turnTotal + state.rollScore;
+            const diceWillRemain = 6 - state.locked.size - state.selected.size;
+            const myScore = state.scores[state.currentPlayer];
+            const winScore = state.winScore;
+            const minBreakIn = activeRuleset.rules.minScoreToGetOnBoard || 0;
+            const needsBreakIn = minBreakIn > 0 && myScore === 0;
+
+            if (aiShouldRoll(diceWillRemain, projectedBank, myScore, winScore, needsBreakIn, minBreakIn)) {
+                setTimeout(aiTakeTurn, 700);
+            } else {
+                setTimeout(() => { if (!els.bankBtn.disabled) bankScore(); else aiTakeTurn(); }, 600);
+            }
+        }, settleDelay);
+    }
+
+    function aiShouldRoll(diceWillRemain, projectedBank, myScore, winScore, needsBreakIn, minBreakIn) {
+        // Forced to keep rolling if banking wouldn't get us on the board.
+        if (needsBreakIn && projectedBank < minBreakIn) return true;
+        // Bank if banking wins the game.
+        if (myScore + projectedBank >= winScore) return false;
+        // Hot dice imminent (diceWillRemain === 0) → bank if reachable, else caller forces roll.
+        if (diceWillRemain === 0) return false;
+        // Final round + behind → press for points.
+        if (state.finalRound) {
+            const leader = Math.max(...state.scores);
+            if (myScore + projectedBank < leader) return true;
+        }
+        // Risk vs reward by remaining dice.
+        if (diceWillRemain >= 4) return true;
+        if (diceWillRemain === 3) return projectedBank < 500;
+        if (diceWillRemain === 2) return projectedBank < 300;
+        return projectedBank < 200;  // 1 die left
     }
 
     function updateCurrentPlayer() {
@@ -814,7 +924,8 @@
     }
 
     // Click a die — toggle selection. Only scoring dice in the current roll can be selected.
-    function onDieClick(globalIdx) {
+    function onDieClick(globalIdx, fromAI = false) {
+        if (state.aiPlaying && !fromAI) return;  // user can't touch dice while bot plays
         if (state.rolling || state.hotDicePending || state.gameOver) return;
         if (state.locked.has(globalIdx)) return;  // locked dice are inert
 
